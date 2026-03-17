@@ -1,288 +1,70 @@
 """
 Display Evaluator
 =================
-A tabbed desktop GUI for comprehensive display evaluation.
-
-Tabs
-----
-1. Self-Reported Info  – OS/EDID data with ⚠️ unverified warnings.
-2. Visual Evaluation   – Fullscreen test patterns + 1–5 rating per pattern.
-3. Refresh & Sync      – Live frame-pacing test and adaptive sync info.
-4. HDR & Colour        – HDR mode and ICC colour-pipeline status.
-5. Scorecard           – PASS / REVIEW / FAIL comparison vs Apple targets.
+A simple desktop GUI that auto-detects your display's specs, highlights key
+values, and scores them against Apple's Retina Display reference targets.
 
 Run with:
-    python3 display_eval.py
+    python display_eval.py
 """
 
 from __future__ import annotations
 
 import math
-import time
 import tkinter as tk
 from tkinter import font, ttk
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 import display_info as di
 
 # ---------------------------------------------------------------------------
-# Colour constants
+# Constants
 # ---------------------------------------------------------------------------
 _GREEN  = "#007a00"
 _ORANGE = "#b85c00"
 _RED    = "#cc0000"
 _GRAY   = "#555555"
-_WARN   = "#aa6600"
 
-# Result → colour mapping
-_RESULT_COLOR = {
-    "PASS":   _GREEN,
-    "REVIEW": _ORANGE,
-    "FAIL":   _RED,
-    "—":      _GRAY,
-}
+_ARCMINUTE_RAD = math.pi / 10800
 
-# Test patterns: (id, label, description)
-_PATTERNS: List[Tuple[str, str, str]] = [
-    ("white",    "Solid White",
-     "Check for uniformity, bright-spot clouding, and backlight bleed."),
-    ("gray50",   "50% Gray",
-     "Check for uniformity and panel unevenness at mid-tone."),
-    ("black",    "Solid Black",
-     "Check for backlight bleed, IPS glow, or VA blackout zones."),
-    ("gradient", "Black→White Gradient",
-     "Look for banding or abrupt tonal transitions."),
-    ("gamma",    "Gamma Ramp Patches",
-     "Compare brightness steps; each patch should appear evenly spaced."),
-    ("scroll",   "UFO Scrolling Bars",
-     "Observe ghosting or smearing behind moving bars."),
-    ("checker",  "Colour Checker Grid",
-     "Judge hue accuracy and colour rendering across primaries, "
-     "secondaries, skin tones, and neutrals."),
+VIEWING_DISTANCES = [
+    ("10 in  – phone held close", 10),
+    ("12 in  – tablet", 12),
+    ("15 in  – laptop", 15),
+    ("18 in  – laptop / small monitor", 18),
+    ("20 in  – desktop monitor", 20),
+    ("24 in  – large desktop monitor", 24),
+    ("30 in  – large/TV monitor", 30),
 ]
 
 
-# ===========================================================================
-# Test-pattern window
-# ===========================================================================
-
-class PatternWindow(tk.Toplevel):
-    """A borderless fullscreen window displaying a single test pattern."""
-
-    # Colour checker grid: (R, G, B, label)
-    _CHECKER_COLORS: List[Tuple[int, int, int, str]] = [
-        # Row 1 – primaries
-        (220,  20,  60, "Red"),
-        ( 34, 139,  34, "Green"),
-        ( 30, 100, 220, "Blue"),
-        (255, 210,   0, "Yellow"),
-        (200,   0, 200, "Magenta"),
-        (  0, 200, 200, "Cyan"),
-        # Row 2 – secondaries / skin tones
-        (255, 120,  60, "Orange"),
-        (120,  60,  20, "Brown"),
-        (255, 200, 180, "Skin 1"),
-        (220, 160, 120, "Skin 2"),
-        (180, 110,  70, "Skin 3"),
-        (130,  70,  30, "Skin 4"),
-        # Row 3 – neutrals
-        (255, 255, 255, "White"),
-        (200, 200, 200, "L.Gray"),
-        (160, 160, 160, "M.Gray"),
-        (100, 100, 100, "D.Gray"),
-        ( 50,  50,  50, "V.Dark"),
-        (  0,   0,   0, "Black"),
-        # Row 4 – extra hues
-        (255, 255, 128, "Lt Yellow"),
-        (128, 255, 128, "Lt Green"),
-        (128, 200, 255, "Lt Blue"),
-        (255, 128, 255, "Lt Magenta"),
-        (128, 240, 240, "Lt Cyan"),
-        (255, 180, 100, "Peach"),
-        # Row 5 – deep hues
-        (128,   0,   0, "Dk Red"),
-        (  0, 100,   0, "Dk Green"),
-        (  0,   0, 128, "Dk Blue"),
-        (128, 128,   0, "Olive"),
-        (128,   0, 128, "Purple"),
-        (  0, 128, 128, "Teal"),
-    ]
-
-    def __init__(self, master: tk.Misc, pattern_id: str) -> None:
-        super().__init__(master)
-        self._pattern_id = pattern_id
-        self._scroll_x   = 0
-        self._after_id: Optional[str] = None
-
-        self.attributes("-fullscreen", True)
-        self.configure(bg="black")
-        self.bind("<Escape>", lambda _e: self._close())
-        self.bind("<Button-1>", lambda _e: self._close())
-
-        self._canvas = tk.Canvas(self, bg="black", highlightthickness=0)
-        self._canvas.pack(fill="both", expand=True)
-
-        self.after(50, self._draw)
-
-    # ------------------------------------------------------------------
-
-    def _close(self) -> None:
-        if self._after_id:
-            self.after_cancel(self._after_id)
-        self.destroy()
-
-    def _draw(self) -> None:
-        """Draw the pattern selected by ``_pattern_id``."""
-        c = self._canvas
-        c.delete("all")
-        W = self.winfo_screenwidth()
-        H = self.winfo_screenheight()
-
-        dispatch = {
-            "white":    lambda: self._fill(c, W, H, "#ffffff"),
-            "gray50":   lambda: self._fill(c, W, H, "#808080"),
-            "black":    lambda: self._fill(c, W, H, "#000000"),
-            "gradient": lambda: self._gradient(c, W, H),
-            "gamma":    lambda: self._gamma_patches(c, W, H),
-            "scroll":   lambda: self._scrolling_bars(c, W, H),
-            "checker":  lambda: self._colour_checker(c, W, H),
-        }
-        dispatch.get(self._pattern_id, lambda: self._fill(c, W, H, "#404040"))()
-
-        # Dismiss hint
-        c.create_text(
-            W // 2, H - 30,
-            text="Press Esc or click to close",
-            fill="#ffffff", font=("Helvetica", 12),
-        )
-
-    # -- individual patterns ----------------------------------------------
-
-    @staticmethod
-    def _fill(c: tk.Canvas, W: int, H: int, colour: str) -> None:
-        c.configure(bg=colour)
-
-    def _gradient(self, c: tk.Canvas, W: int, H: int) -> None:
-        c.configure(bg="black")
-        steps = min(W, 512)
-        inv_steps = 1.0 / steps
-        for i in range(steps):
-            v = int(i * inv_steps * 255)
-            col = f"#{v:02x}{v:02x}{v:02x}"
-            x0 = int(i * W * inv_steps)
-            x1 = int((i + 1) * W * inv_steps)
-            c.create_rectangle(x0, 0, x1, H, fill=col, outline="")
-
-    def _gamma_patches(self, c: tk.Canvas, W: int, H: int) -> None:
-        c.configure(bg="#111111")
-        levels = [0, 18, 38, 64, 96, 128, 160, 192, 224, 255]
-        cols   = len(levels)
-        pw     = W // cols
-        for idx, v in enumerate(levels):
-            col = f"#{v:02x}{v:02x}{v:02x}"
-            x0  = idx * pw
-            c.create_rectangle(x0, H // 4, x0 + pw, 3 * H // 4, fill=col, outline="")
-            label_col = "#000000" if v > 180 else "#ffffff"
-            c.create_text(
-                x0 + pw // 2, 3 * H // 4 + 20,
-                text=str(v), fill=label_col, font=("Courier", 10),
-            )
-
-    def _scrolling_bars(self, c: tk.Canvas, W: int, H: int) -> None:
-        """Animate UFO-style horizontal scrolling bars at three speeds."""
-        c.configure(bg="#111111")
-        speeds = [2, 5, 10]  # pixels per frame
-        bar_h  = H // 6
-        for row, speed in enumerate(speeds):
-            y0 = row * 2 * bar_h + bar_h // 2
-            y1 = y0 + bar_h
-            # Draw bar at current offset
-            x = (self._scroll_x * speed) % (W + 80) - 80
-            c.create_rectangle(x, y0, x + 80, y1, fill="#ffffff", outline="")
-            c.create_text(
-                10, (y0 + y1) // 2,
-                text=f"{speed}px/frame",
-                fill="#aaaaaa", font=("Courier", 11), anchor="w",
-            )
-        self._scroll_x += 1
-        self._after_id = self.after(16, self._draw)  # ~60 fps
-
-    def _colour_checker(self, c: tk.Canvas, W: int, H: int) -> None:
-        c.configure(bg="#222222")
-        cols_n = 6
-        rows_n = 5
-        sw  = W // cols_n
-        sh  = H // rows_n
-        for idx, (r, g, b, label) in enumerate(self._CHECKER_COLORS):
-            row = idx // cols_n
-            col = idx  % cols_n
-            x0  = col * sw
-            y0  = row * sh
-            col_hex = f"#{r:02x}{g:02x}{b:02x}"
-            c.create_rectangle(x0, y0, x0 + sw, y0 + sh, fill=col_hex, outline="#000")
-            text_v = int(0.299 * r + 0.587 * g + 0.114 * b)
-            text_col = "#000000" if text_v > 140 else "#ffffff"
-            c.create_text(
-                x0 + sw // 2, y0 + sh // 2,
-                text=label, fill=text_col, font=("Helvetica", 9),
-            )
+def _retina_min_ppi(distance_in: float) -> float:
+    return 1.0 / (distance_in * math.tan(_ARCMINUTE_RAD))
 
 
-# ===========================================================================
-# Frame-pacing test window
-# ===========================================================================
+def _calculate_ppi(w: int, h: int, diag: float) -> float:
+    return math.sqrt(w ** 2 + h ** 2) / diag
 
-class FramePaceWindow(tk.Toplevel):
-    """Fullscreen frame-pacing / frame-counter test."""
 
-    def __init__(self, master: tk.Misc) -> None:
-        super().__init__(master)
-        self._frame    = 0
-        self._t0       = time.perf_counter()
-        self._bar_x    = 0
-        self._after_id: Optional[str] = None
+def _score_label(pct: float) -> str:
+    """Map a 0-100 percentage to a letter grade."""
+    if pct >= 90:
+        return "A"
+    if pct >= 75:
+        return "B"
+    if pct >= 60:
+        return "C"
+    if pct >= 40:
+        return "D"
+    return "F"
 
-        self.attributes("-fullscreen", True)
-        self.configure(bg="black")
-        self.bind("<Escape>", lambda _e: self._close())
 
-        self._canvas = tk.Canvas(self, bg="black", highlightthickness=0)
-        self._canvas.pack(fill="both", expand=True)
-        self._draw()
-
-    def _close(self) -> None:
-        if self._after_id:
-            self.after_cancel(self._after_id)
-        self.destroy()
-
-    def _draw(self) -> None:
-        c = self._canvas
-        c.delete("all")
-        W = self.winfo_screenwidth()
-        H = self.winfo_screenheight()
-
-        # Moving bar
-        bar_w = 60
-        self._bar_x = (self._bar_x + 4) % (W + bar_w)
-        c.create_rectangle(
-            self._bar_x - bar_w, 0, self._bar_x, H // 3,
-            fill="#00cc44", outline="",
-        )
-
-        # Frame counter and measured FPS
-        elapsed = time.perf_counter() - self._t0
-        fps = self._frame / elapsed if elapsed > 0 else 0.0
-        self._frame += 1
-
-        c.create_text(W // 2, H // 2,
-                      text=f"Frame: {self._frame}\nMeasured FPS: {fps:.1f}",
-                      fill="#ffffff", font=("Courier", 24, "bold"),
-                      justify="center")
-        c.create_text(W // 2, H - 30,
-                      text="Press Esc to close",
-                      fill="#888888", font=("Helvetica", 12))
-
-        self._after_id = self.after(16, self._draw)
+def _score_color(pct: float) -> str:
+    if pct >= 75:
+        return _GREEN
+    if pct >= 50:
+        return _ORANGE
+    return _RED
 
 
 # ===========================================================================
@@ -290,445 +72,265 @@ class FramePaceWindow(tk.Toplevel):
 # ===========================================================================
 
 class DisplayEvalApp(tk.Tk):
-    """Tabbed display evaluation application."""
 
-    _PADX = 10
+    _PADX = 14
     _PADY = 5
 
     def __init__(self) -> None:
         super().__init__()
-        self.title("Display Evaluator")
-        self.resizable(True, True)
-        self.minsize(680, 520)
+        self.title("Display Evaluator – Apple Retina Scorecard")
+        self.resizable(False, False)
 
-        # Collect display info (may be partially empty on unsupported platforms)
         self._info: Dict[str, Any] = di.get_display_info()
-        self._scores: List[Dict[str, Any]] = di.scorecard(self._info)
-
-        # Per-pattern ratings & notes  {pattern_id: {"rating": IntVar, "notes": StringVar}}
-        self._pattern_data: Dict[str, Dict[str, Any]] = {
-            pid: {
-                "rating": tk.IntVar(value=0),
-                "notes":  tk.StringVar(value=""),
-            }
-            for pid, *_ in _PATTERNS
-        }
+        self._screen_w = self._info.get("resolution_width") or self.winfo_screenwidth()
+        self._screen_h = self._info.get("resolution_height") or self.winfo_screenheight()
 
         self._build_ui()
+        self._update_scores()
 
     # ------------------------------------------------------------------
-    # Top-level UI
+    # UI
     # ------------------------------------------------------------------
 
     def _build_ui(self) -> None:
-        outer = ttk.Frame(self, padding=12)
-        outer.pack(fill="both", expand=True)
+        outer = ttk.Frame(self, padding=18)
+        outer.grid(row=0, column=0, sticky="nsew")
 
-        title_font = font.Font(family="Helvetica", size=15, weight="bold")
-        ttk.Label(outer, text="Display Evaluator", font=title_font).pack(
-            pady=(0, 8)
+        # Title
+        title_font = font.Font(family="Helvetica", size=16, weight="bold")
+        ttk.Label(outer, text="Display Evaluator", font=title_font).grid(
+            row=0, column=0, columnspan=3, pady=(0, 4),
         )
+        ttk.Label(
+            outer, text="How does your display compare to Apple Retina standards?",
+            foreground=_GRAY,
+        ).grid(row=1, column=0, columnspan=3, pady=(0, 12))
 
-        nb = ttk.Notebook(outer)
-        nb.pack(fill="both", expand=True)
+        # ── Detected values (highlighted) ─────────────────────────────
+        info_frame = ttk.LabelFrame(outer, text="  Detected Display Info  ", padding=10)
+        info_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
-        nb.add(self._build_info_tab(nb),    text=" 1 · Self-Reported Info ")
-        nb.add(self._build_eval_tab(nb),    text=" 2 · Visual Evaluation ")
-        nb.add(self._build_refresh_tab(nb), text=" 3 · Refresh & Sync ")
-        nb.add(self._build_hdr_tab(nb),     text=" 4 · HDR & Colour ")
-        nb.add(self._build_score_tab(nb),   text=" 5 · Scorecard ")
-
-    # ------------------------------------------------------------------
-    # Tab 1 – Self-Reported Info
-    # ------------------------------------------------------------------
-
-    def _build_info_tab(self, parent: ttk.Notebook) -> ttk.Frame:
-        frame = ttk.Frame(parent, padding=10)
-
-        # Warning banner
-        warn_font = font.Font(family="Helvetica", size=10, weight="bold")
-        warn_frame = tk.Frame(frame, bg="#fff3cd", relief="flat", bd=1)
-        warn_frame.pack(fill="x", pady=(0, 10))
-        tk.Label(
-            warn_frame,
-            text="⚠️  All values below are self-reported by the manufacturer or OS and "
-                 "have NOT been independently verified with calibration hardware.",
-            bg="#fff3cd", fg="#856404",
-            font=warn_font,
-            wraplength=620, justify="left", padx=8, pady=6,
-        ).pack(fill="x")
-
-        # Scrollable content area
-        canvas = tk.Canvas(frame, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=canvas.yview)
-        canvas.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side="right", fill="y")
-        canvas.pack(side="left", fill="both", expand=True)
-
-        inner = ttk.Frame(canvas)
-        inner.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all")),
-        )
-        canvas.create_window((0, 0), window=inner, anchor="nw")
-
-        def _row(section: str, label: str, value: Any, row: int) -> None:
-            if section:
-                ttk.Label(inner, text=section,
-                          font=font.Font(family="Helvetica", size=10, weight="bold"),
-                          foreground="#333366").grid(
-                    row=row, column=0, columnspan=2,
-                    sticky="w", padx=self._PADX, pady=(10, 2)
-                )
-                row += 1
-            disp = "—" if value is None else str(value)
-            ttk.Label(inner, text=label + ":").grid(
-                row=row, column=0, sticky="w", padx=(self._PADX + 16, 6), pady=2
-            )
-            ttk.Label(inner, text=disp, foreground="#333").grid(
-                row=row, column=1, sticky="w", padx=6, pady=2
-            )
-
+        val_font = font.Font(family="Helvetica", size=11, weight="bold")
         inf = self._info
-        r = 0
 
-        # ── System ──────────────────────────────────────────────────
-        _row("System", "Platform", inf.get("platform"), r);   r += 2
-        _row("", "Resolution",
-             f"{inf['resolution_width']} × {inf['resolution_height']} px"
-             if inf.get("resolution_width") else None, r);    r += 1
-        _row("", "Refresh Rate",
-             f"{inf['refresh_rate']:.2f} Hz" if inf.get("refresh_rate") else None, r)
-        r += 1
-
-        # ── Adaptive Sync ────────────────────────────────────────────
-        _row("Adaptive Sync", "Supported",
-             "Yes" if inf.get("adaptive_sync") else
-             ("No" if inf.get("adaptive_sync") is False else None), r);  r += 2
-        _row("", "Sync Range", inf.get("adaptive_sync_range"), r);       r += 1
-
-        # ── Colour ───────────────────────────────────────────────────
-        p3   = inf.get("gamut_p3_pct")
-        srgb = inf.get("gamut_srgb_pct")
-        argb = inf.get("gamut_adobergb_pct")
-        _row("Colour Gamut (from EDID chromaticity)",
-             "sRGB coverage",
-             f"{srgb:.1f}%" if srgb is not None else None, r); r += 2
-        _row("", "DCI-P3 coverage",
-             f"{p3:.1f}%" if p3 is not None else None, r);     r += 1
-        _row("", "Adobe RGB coverage",
-             f"{argb:.1f}%" if argb is not None else None, r); r += 1
-
-        # Chromaticity coords
-        for ch, label in [
-            ("color_rx", "Red X"),   ("color_ry", "Red Y"),
-            ("color_gx", "Green X"), ("color_gy", "Green Y"),
-            ("color_bx", "Blue X"),  ("color_by", "Blue Y"),
-            ("color_wx", "White X"), ("color_wy", "White Y"),
-        ]:
-            v = inf.get(ch)
-            _row("", label, f"{v:.4f}" if v is not None else None, r)
-            r += 1
-
-        # ── HDR ──────────────────────────────────────────────────────
-        _row("HDR", "Reported Tier", inf.get("hdr_tier"), r);   r += 2
-        _row("", "Active HDR Mode", inf.get("hdr_active"), r);  r += 1
-
-        # ── ICC / Colour Profile ─────────────────────────────────────
-        _row("Colour Profile", "Active ICC Profile Name",
-             inf.get("icc_profile_name"), r);                  r += 2
-        _row("", "Profile Path", inf.get("icc_profile_path"), r); r += 1
-        if inf.get("platform") == "Darwin":
-            _row("", "True Tone / Ambient",
-                 "On" if inf.get("true_tone") else
-                 ("Off" if inf.get("true_tone") is False else None), r)
-            r += 1
-
-        # ── EDID ─────────────────────────────────────────────────────
-        _row("EDID", "Manufacturer", inf.get("manufacturer_name") or
-             inf.get("manufacturer_id"), r);                   r += 2
-        _row("", "Monitor Name",   inf.get("monitor_name"), r);   r += 1
-        _row("", "Product Code",   inf.get("product_code"), r);   r += 1
-        _row("", "Serial Number",  inf.get("serial_number"), r);  r += 1
-        _row("", "Panel Interface", inf.get("panel_type"), r);    r += 1
-        week = inf.get("manufacture_week")
-        year = inf.get("manufacture_year")
-        mfr_date = (
-            f"Week {week}, {year}" if week else str(year) if year else None
-        )
-        _row("", "Manufacture Date", mfr_date, r);               r += 1
-
-        return frame
-
-    # ------------------------------------------------------------------
-    # Tab 2 – Visual Evaluation
-    # ------------------------------------------------------------------
-
-    def _build_eval_tab(self, parent: ttk.Notebook) -> ttk.Frame:
-        frame = ttk.Frame(parent, padding=10)
-
-        ttk.Label(
-            frame,
-            text="Launch each test pattern fullscreen, observe it, then record "
-                 "your score (1 = poor … 5 = excellent) and optional notes.",
-            wraplength=640, justify="left",
-        ).pack(anchor="w", pady=(0, 8))
-
-        for pid, label, desc in _PATTERNS:
-            self._add_pattern_row(frame, pid, label, desc)
-
-        return frame
-
-    def _add_pattern_row(
-        self, parent: ttk.Frame, pid: str, label: str, desc: str
-    ) -> None:
-        row_frame = ttk.LabelFrame(parent, text=label, padding=(8, 4))
-        row_frame.pack(fill="x", pady=4)
-
-        ttk.Label(row_frame, text=desc, wraplength=500,
-                  foreground=_GRAY, justify="left").grid(
-            row=0, column=0, columnspan=6, sticky="w", padx=4, pady=(0, 4)
-        )
-
-        ttk.Button(
-            row_frame, text="▶  Launch Pattern",
-            command=lambda p=pid: PatternWindow(self, p),
-        ).grid(row=1, column=0, padx=(0, 12), pady=2)
-
-        ttk.Label(row_frame, text="Rating (1–5):").grid(row=1, column=1, padx=4)
-        rating_var = self._pattern_data[pid]["rating"]
-        for val in range(1, 6):
-            ttk.Radiobutton(row_frame, text=str(val),
-                            variable=rating_var, value=val).grid(
-                row=1, column=1 + val, padx=2
-            )
-
-        ttk.Label(row_frame, text="Notes:").grid(row=2, column=0, sticky="w", padx=4)
-        notes_entry = ttk.Entry(row_frame, textvariable=self._pattern_data[pid]["notes"],
-                                width=60)
-        notes_entry.grid(row=2, column=1, columnspan=6, sticky="ew", pady=2)
-
-    # ------------------------------------------------------------------
-    # Tab 3 – Refresh & Sync
-    # ------------------------------------------------------------------
-
-    def _build_refresh_tab(self, parent: ttk.Notebook) -> ttk.Frame:
-        frame = ttk.Frame(parent, padding=12)
-        inf   = self._info
-
-        # Data section
-        data_frame = ttk.LabelFrame(frame, text="Reported Values", padding=8)
-        data_frame.pack(fill="x", pady=(0, 10))
-
-        rows = [
-            ("Current Refresh Rate",
-             f"{inf['refresh_rate']:.2f} Hz ⚠️" if inf.get("refresh_rate") else "Unknown ⚠️"),
+        detected_rows = [
+            ("Monitor", inf.get("monitor_name") or inf.get("manufacturer_name")
+             or inf.get("manufacturer_id") or "Unknown"),
+            ("Resolution", f"{self._screen_w} x {self._screen_h} px"),
+            ("Refresh Rate",
+             f"{inf['refresh_rate']:.0f} Hz" if inf.get("refresh_rate") else "Unknown"),
             ("Adaptive Sync",
-             "Supported ⚠️" if inf.get("adaptive_sync") else
-             ("Not detected ⚠️" if inf.get("adaptive_sync") is False else "Unknown ⚠️")),
-            ("Sync Range",
-             f"{inf.get('adaptive_sync_range')} ⚠️"
-             if inf.get("adaptive_sync_range") else "Unknown ⚠️"),
-            ("EDID Min Refresh",
-             f"{inf['min_refresh_hz']} Hz" if inf.get("min_refresh_hz") else "—"),
-            ("EDID Max Refresh",
-             f"{inf['max_refresh_hz']} Hz" if inf.get("max_refresh_hz") else "—"),
+             inf.get("adaptive_sync_range") if inf.get("adaptive_sync")
+             else "Not detected"),
+            ("DCI-P3 Gamut",
+             f"{inf['gamut_p3_pct']:.1f}%" if inf.get("gamut_p3_pct") is not None else "Unknown"),
+            ("sRGB Gamut",
+             f"{inf['gamut_srgb_pct']:.1f}%" if inf.get("gamut_srgb_pct") is not None else "Unknown"),
+            ("HDR", str(inf.get("hdr_tier") or "Not detected")),
+            ("Panel Type", str(inf.get("panel_type") or "Unknown")),
+            ("Color Profile", str(inf.get("icc_profile_name") or "Not detected")),
         ]
-        for r_idx, (lbl, val) in enumerate(rows):
-            ttk.Label(data_frame, text=lbl + ":").grid(
-                row=r_idx, column=0, sticky="w", padx=8, pady=3
+
+        for r, (label, value) in enumerate(detected_rows):
+            ttk.Label(info_frame, text=label + ":").grid(
+                row=r, column=0, sticky="w", padx=(4, 10), pady=2,
             )
-            ttk.Label(data_frame, text=val, foreground="#333").grid(
-                row=r_idx, column=1, sticky="w", padx=8, pady=3
-            )
-
-        # Frame-pacing test
-        fp_frame = ttk.LabelFrame(frame, text="Frame-Pacing Test", padding=8)
-        fp_frame.pack(fill="x")
-
-        ttk.Label(
-            fp_frame,
-            text="Launch the fullscreen frame-pacing test.  A green bar scrolls "
-                 "across the screen.  If motion appears jerky or stuttery, your "
-                 "display may have refresh-rate or VRR issues.\n"
-                 "The frame counter increments every rendered frame; the FPS "
-                 "readout shows the measured render rate.",
-            wraplength=600, justify="left",
-        ).pack(anchor="w", pady=(0, 8))
-
-        ttk.Button(
-            fp_frame, text="▶  Launch Frame-Pacing Test",
-            command=lambda: FramePaceWindow(self),
-        ).pack(anchor="w")
-
-        return frame
-
-    # ------------------------------------------------------------------
-    # Tab 4 – HDR & Colour
-    # ------------------------------------------------------------------
-
-    def _build_hdr_tab(self, parent: ttk.Notebook) -> ttk.Frame:
-        frame = ttk.Frame(parent, padding=12)
-        inf   = self._info
-
-        # HDR section
-        hdr_frame = ttk.LabelFrame(frame, text="HDR Status", padding=8)
-        hdr_frame.pack(fill="x", pady=(0, 10))
-
-        hdr_rows = [
-            ("Reported HDR Tier",
-             str(inf.get("hdr_tier") or "Not detected") + " ⚠️"),
-            ("Active HDR Mode",
-             str(inf.get("hdr_active") or "Not detected") + " ⚠️"),
-        ]
-        for r_idx, (lbl, val) in enumerate(hdr_rows):
-            ttk.Label(hdr_frame, text=lbl + ":").grid(
-                row=r_idx, column=0, sticky="w", padx=8, pady=3
-            )
-            ttk.Label(hdr_frame, text=val, foreground="#333").grid(
-                row=r_idx, column=1, sticky="w", padx=8, pady=3
+            tk.Label(info_frame, text=value, font=val_font, fg="#1a1a1a").grid(
+                row=r, column=1, sticky="w", padx=4, pady=2,
             )
 
-        tk.Label(
-            hdr_frame,
-            text="⚠️  HDR tier is declared by the manufacturer and has not been "
-                 "independently verified.",
-            fg=_WARN, bg=self.cget("bg"), font=("Helvetica", 9),
-            wraplength=580, justify="left",
-        ).grid(row=len(hdr_rows), column=0, columnspan=2,
-               sticky="w", padx=8, pady=(4, 0))
+        # ── Screen diagonal + viewing distance ────────────────────────
+        input_frame = ttk.LabelFrame(outer, text="  Your Setup  ", padding=10)
+        input_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
-        # Colour pipeline section
-        col_frame = ttk.LabelFrame(frame, text="Colour Pipeline", padding=8)
-        col_frame.pack(fill="x")
-
-        col_rows = [
-            ("Active ICC Profile",
-             str(inf.get("icc_profile_name") or "Not detected") + " ⚠️"),
-            ("Profile Path",
-             str(inf.get("icc_profile_path") or "—")),
-            ("Panel Interface",
-             str(inf.get("panel_type") or "—") + " ⚠️"),
-        ]
-        if inf.get("platform") == "Darwin":
-            col_rows.append((
-                "True Tone / Ambient Adaptation",
-                ("On" if inf.get("true_tone") else
-                 "Off" if inf.get("true_tone") is False else "Unknown") + " ⚠️",
-            ))
-
-        for r_idx, (lbl, val) in enumerate(col_rows):
-            ttk.Label(col_frame, text=lbl + ":").grid(
-                row=r_idx, column=0, sticky="w", padx=8, pady=3
-            )
-            ttk.Label(col_frame, text=val, foreground="#333",
-                      wraplength=420).grid(
-                row=r_idx, column=1, sticky="w", padx=8, pady=3
-            )
-
-        tk.Label(
-            col_frame,
-            text="⚠️  ICC profile and colour space reported by the OS; accuracy "
-                 "depends on the profile quality and display calibration status.",
-            fg=_WARN, bg=self.cget("bg"), font=("Helvetica", 9),
-            wraplength=580, justify="left",
-        ).grid(row=len(col_rows), column=0, columnspan=2,
-               sticky="w", padx=8, pady=(4, 0))
-
-        return frame
-
-    # ------------------------------------------------------------------
-    # Tab 5 – Scorecard
-    # ------------------------------------------------------------------
-
-    def _build_score_tab(self, parent: ttk.Notebook) -> ttk.Frame:
-        frame = ttk.Frame(parent, padding=12)
-
-        title_font = font.Font(family="Helvetica", size=11, weight="bold")
-        ttk.Label(frame, text="Apple Display Reference Scorecard",
-                  font=title_font).pack(anchor="w", pady=(0, 6))
-        ttk.Label(
-            frame,
-            text="⚠️  All self-reported values are unverified.  "
-                 "'Hardware Verified' rows require a colorimeter.",
-            foreground=_WARN, wraplength=640, justify="left",
-        ).pack(anchor="w", pady=(0, 8))
-
-        # Table
-        columns = ("Metric", "Reported Value", "Target", "Result", "Note")
-        tree = ttk.Treeview(frame, columns=columns, show="headings",
-                            height=len(self._scores))
-        tree.pack(fill="both", expand=True)
-
-        col_widths = (180, 180, 180, 70, 240)
-        for col, w in zip(columns, col_widths):
-            tree.heading(col, text=col)
-            tree.column(col, width=w, anchor="w", stretch=False)
-
-        # Tags for colouring
-        tree.tag_configure("PASS",   foreground=_GREEN)
-        tree.tag_configure("REVIEW", foreground=_ORANGE)
-        tree.tag_configure("FAIL",   foreground=_RED)
-        tree.tag_configure("STUB",   foreground=_GRAY)
-
-        for row in self._scores:
-            tag  = row["result"] if row["result"] in ("PASS", "REVIEW", "FAIL") else "STUB"
-            tree.insert(
-                "", "end",
-                values=(
-                    row["metric"],
-                    row["value"],
-                    row["target"],
-                    row["result"],
-                    row["note"],
-                ),
-                tags=(tag,),
-            )
-
-        # Scrollbar
-        sb = ttk.Scrollbar(frame, orient="horizontal", command=tree.xview)
-        tree.configure(xscrollcommand=sb.set)
-        sb.pack(fill="x")
-
-        # Visual evaluation summary
-        eval_frame = ttk.LabelFrame(frame, text="Visual Evaluation Summary", padding=8)
-        eval_frame.pack(fill="x", pady=(12, 0))
-
-        self._eval_summary_label = ttk.Label(
-            eval_frame,
-            text="No ratings recorded yet.  "
-                 "Complete patterns in the Visual Evaluation tab, then refresh.",
-            foreground=_GRAY, wraplength=600,
+        ttk.Label(input_frame, text="Screen diagonal (inches):").grid(
+            row=0, column=0, sticky="w", padx=(4, 8), pady=self._PADY,
         )
-        self._eval_summary_label.pack(anchor="w")
+        self._diagonal_var = tk.StringVar(value="")
+        diag_entry = ttk.Entry(input_frame, textvariable=self._diagonal_var, width=10)
+        diag_entry.grid(row=0, column=1, sticky="w", pady=self._PADY)
+        diag_entry.bind("<KeyRelease>", lambda _e: self._update_scores())
 
-        ttk.Button(
-            eval_frame, text="↻  Refresh Visual Summary",
-            command=self._refresh_eval_summary,
-        ).pack(anchor="w", pady=(4, 0))
+        ttk.Label(input_frame, text="Viewing distance:").grid(
+            row=1, column=0, sticky="w", padx=(4, 8), pady=self._PADY,
+        )
+        distance_labels = [label for label, _ in VIEWING_DISTANCES]
+        self._distance_combo = ttk.Combobox(
+            input_frame, values=distance_labels, state="readonly", width=30,
+        )
+        default_idx = next(
+            (i for i, (_, d) in enumerate(VIEWING_DISTANCES) if d == 18), 3
+        )
+        self._distance_combo.current(default_idx)
+        self._distance_combo.grid(row=1, column=1, sticky="w", pady=self._PADY)
+        self._distance_combo.bind("<<ComboboxSelected>>", lambda _e: self._update_scores())
 
-        return frame
+        # ── Scorecard ─────────────────────────────────────────────────
+        score_frame = ttk.LabelFrame(outer, text="  Scorecard vs Apple Retina Targets  ", padding=10)
+        score_frame.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
-    def _refresh_eval_summary(self) -> None:
-        """Update the visual evaluation summary from recorded ratings."""
-        lines: List[str] = []
-        for pid, plabel, _ in _PATTERNS:
-            rating = self._pattern_data[pid]["rating"].get()
-            notes  = self._pattern_data[pid]["notes"].get().strip()
-            if rating > 0:
-                line = f"• {plabel}: {rating}/5"
-                if notes:
-                    line += f" — {notes}"
-                lines.append(line)
+        header_font = font.Font(family="Helvetica", size=9, weight="bold")
+        for ci, hdr in enumerate(("Metric", "Your Value", "Apple Target", "Result")):
+            ttk.Label(score_frame, text=hdr, font=header_font).grid(
+                row=0, column=ci, sticky="w", padx=8, pady=(0, 4),
+            )
+        ttk.Separator(score_frame, orient="horizontal").grid(
+            row=1, column=0, columnspan=4, sticky="ew", pady=2,
+        )
 
-        if lines:
-            self._eval_summary_label.configure(
-                text="\n".join(lines), foreground="#333"
+        # We'll populate these dynamically
+        self._score_frame = score_frame
+        self._score_widgets: List[Dict[str, tk.Label]] = []
+
+        metric_names = [
+            "Pixel Density (PPI)",
+            "DCI-P3 Gamut",
+            "Refresh Rate",
+            "HDR Support",
+        ]
+        for i, name in enumerate(metric_names):
+            r = i + 2
+            lbl_metric = tk.Label(score_frame, text=name, anchor="w")
+            lbl_value  = tk.Label(score_frame, text="—", anchor="w")
+            lbl_target = tk.Label(score_frame, text="—", anchor="w", fg=_GRAY)
+            lbl_result = tk.Label(score_frame, text="—", anchor="w",
+                                  font=font.Font(family="Helvetica", size=10, weight="bold"))
+            lbl_metric.grid(row=r, column=0, sticky="w", padx=8, pady=3)
+            lbl_value.grid( row=r, column=1, sticky="w", padx=8, pady=3)
+            lbl_target.grid(row=r, column=2, sticky="w", padx=8, pady=3)
+            lbl_result.grid(row=r, column=3, sticky="w", padx=8, pady=3)
+            self._score_widgets.append({
+                "metric": lbl_metric,
+                "value":  lbl_value,
+                "target": lbl_target,
+                "result": lbl_result,
+            })
+
+        # ── Overall score ─────────────────────────────────────────────
+        ttk.Separator(outer, orient="horizontal").grid(
+            row=5, column=0, columnspan=3, sticky="ew", pady=8,
+        )
+
+        self._overall_font = font.Font(family="Helvetica", size=28, weight="bold")
+        self._overall_label = tk.Label(
+            outer, text="—", font=self._overall_font, fg=_GRAY,
+        )
+        self._overall_label.grid(row=6, column=0, columnspan=3, pady=(0, 2))
+
+        self._overall_desc = tk.Label(
+            outer, text="Enter screen diagonal to get your score",
+            fg=_GRAY, font=font.Font(family="Helvetica", size=11),
+        )
+        self._overall_desc.grid(row=7, column=0, columnspan=3, pady=(0, 8))
+
+    # ------------------------------------------------------------------
+    # Score computation
+    # ------------------------------------------------------------------
+
+    def _selected_distance(self) -> float:
+        idx = self._distance_combo.current()
+        return VIEWING_DISTANCES[idx][1]
+
+    def _update_scores(self) -> None:
+        inf = self._info
+        distance = self._selected_distance()
+        min_ppi = _retina_min_ppi(distance)
+        scores: List[float] = []  # 0-100 per metric
+
+        # --- PPI ---
+        ppi_w = self._score_widgets[0]
+        ppi_target = f">= {min_ppi:.0f} PPI @ {distance:.0f} in"
+        ppi_w["target"].configure(text=ppi_target)
+
+        raw_diag = self._diagonal_var.get().strip()
+        ppi = None
+        if raw_diag:
+            try:
+                diagonal = float(raw_diag)
+                if diagonal > 0:
+                    ppi = _calculate_ppi(self._screen_w, self._screen_h, diagonal)
+            except ValueError:
+                pass
+
+        if ppi is not None:
+            ppi_pct = min(ppi / min_ppi * 100, 100)
+            scores.append(ppi_pct)
+            is_pass = ppi >= min_ppi
+            ppi_w["value"].configure(text=f"{ppi:.1f} PPI")
+            ppi_w["result"].configure(
+                text="PASS" if is_pass else "FAIL",
+                fg=_GREEN if is_pass else _RED,
             )
         else:
-            self._eval_summary_label.configure(
-                text="No ratings recorded yet.",
-                foreground=_GRAY,
+            ppi_w["value"].configure(text="—")
+            ppi_w["result"].configure(text="—", fg=_GRAY)
+
+        # --- DCI-P3 Gamut ---
+        p3_w = self._score_widgets[1]
+        p3_target = 95.0
+        p3_w["target"].configure(text=f">= {p3_target:.0f}%")
+        p3 = inf.get("gamut_p3_pct")
+        if p3 is not None:
+            p3_pct = min(p3 / p3_target * 100, 100)
+            scores.append(p3_pct)
+            result = "PASS" if p3 >= p3_target else ("REVIEW" if p3 >= 80 else "FAIL")
+            color = _GREEN if result == "PASS" else (_ORANGE if result == "REVIEW" else _RED)
+            p3_w["value"].configure(text=f"{p3:.1f}%")
+            p3_w["result"].configure(text=result, fg=color)
+        else:
+            p3_w["value"].configure(text="Unknown")
+            p3_w["result"].configure(text="—", fg=_GRAY)
+
+        # --- Refresh Rate ---
+        rr_w = self._score_widgets[2]
+        tgt_hz = 120
+        rr_w["target"].configure(text=f">= {tgt_hz} Hz")
+        rr = inf.get("refresh_rate") or inf.get("max_refresh_hz")
+        if rr is not None:
+            rr_pct = min(rr / tgt_hz * 100, 100)
+            scores.append(rr_pct)
+            result = "PASS" if rr >= tgt_hz else ("REVIEW" if rr >= 60 else "FAIL")
+            color = _GREEN if result == "PASS" else (_ORANGE if result == "REVIEW" else _RED)
+            rr_w["value"].configure(text=f"{rr:.0f} Hz")
+            rr_w["result"].configure(text=result, fg=color)
+        else:
+            rr_w["value"].configure(text="Unknown")
+            rr_w["result"].configure(text="—", fg=_GRAY)
+
+        # --- HDR ---
+        hdr_w = self._score_widgets[3]
+        hdr_w["target"].configure(text="HDR supported")
+        hdr = inf.get("hdr_tier")
+        if hdr:
+            scores.append(100)
+            hdr_w["value"].configure(text=str(hdr))
+            hdr_w["result"].configure(text="PASS", fg=_GREEN)
+        else:
+            scores.append(0)
+            hdr_w["value"].configure(text="Not detected")
+            hdr_w["result"].configure(text="FAIL", fg=_RED)
+
+        # --- Overall ---
+        if scores:
+            overall = sum(scores) / len(scores)
+            grade = _score_label(overall)
+            self._overall_label.configure(
+                text=f"{grade}  ({overall:.0f}%)",
+                fg=_score_color(overall),
+            )
+            if overall >= 90:
+                desc = "Excellent — meets or exceeds Apple Retina standards"
+            elif overall >= 75:
+                desc = "Good — close to Apple Retina quality"
+            elif overall >= 50:
+                desc = "Fair — some areas fall short of Retina standards"
+            else:
+                desc = "Below Apple Retina standards"
+            self._overall_desc.configure(text=desc, fg=_score_color(overall))
+        else:
+            self._overall_label.configure(text="—", fg=_GRAY)
+            self._overall_desc.configure(
+                text="Enter screen diagonal to get your score", fg=_GRAY,
             )
 
 

@@ -89,6 +89,7 @@ _MANUFACTURER_IDS: Dict[str, str] = {
     "MSI": "MSI",
     "AOC": "AOC International",
     "ASU": "ASUS",
+    "AUS": "ASUS",
     "PHI": "Philips",
     "EIZ": "EIZO",
     "PHL": "Philips Consumer Electronics",
@@ -175,6 +176,8 @@ def parse_edid(data: bytes) -> Dict[str, Any]:
         "gamut_srgb_pct":     None,
         "gamut_p3_pct":       None,
         "gamut_adobergb_pct": None,
+        "hdr_supported":      None,
+        "max_luminance_nits": None,
     }
 
     if len(data) < 128 or data[:8] != _EDID_HEADER:
@@ -246,6 +249,35 @@ def parse_edid(data: bytes) -> Dict[str, Any]:
     # Fall back to binary serial if no ASCII serial was found
     if result["serial_number"] is None and serial_bin not in (0, 0xFFFF_FFFF):
         result["serial_number"] = str(serial_bin)
+
+    # ── CTA-861 extension block (HDR static metadata) ─────────────────
+    if len(data) >= 256 and data[128] == 0x02:  # CTA extension tag
+        ext = data[128:256]
+        dtd_offset = ext[2]
+        pos = 4
+        while pos < dtd_offset and pos < 126:
+            tag = (ext[pos] >> 5) & 0x07
+            length = ext[pos] & 0x1F
+            if pos + 1 + length > 126:
+                break
+            block_data = ext[pos + 1: pos + 1 + length]
+            if tag == 7 and length > 0:  # Extended tag
+                ext_tag = block_data[0]
+                if ext_tag == 6 and length > 1:  # HDR Static Metadata
+                    eotf = block_data[1]
+                    hdrs = []
+                    if eotf & 0x04:
+                        hdrs.append("HDR10")
+                    if eotf & 0x08:
+                        hdrs.append("HLG")
+                    if hdrs:
+                        result["hdr_supported"] = ", ".join(hdrs)
+                    if length > 3:
+                        code = block_data[3]
+                        result["max_luminance_nits"] = int(
+                            50 * (2 ** (code / 32))
+                        )
+            pos += 1 + length
 
     return result
 
@@ -548,9 +580,11 @@ def _get_windows_info() -> Dict[str, Any]:
     # ── EDID from registry ────────────────────────────────────────────────
     ps_edid = _run([
         "powershell", "-NoProfile", "-Command",
-        r"Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Enum\DISPLAY\*\*\Device Parameters' "
-        r"| Select-Object -ExpandProperty EDID | ForEach-Object { [BitConverter]::ToString($_).Replace('-','') } "
-        r"| Select-Object -First 1",
+        "$item = Get-ItemProperty "
+        "'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\DISPLAY\\*\\*\\Device Parameters' "
+        "-Name EDID -ErrorAction SilentlyContinue "
+        "| Where-Object { $_.EDID } | Select-Object -First 1; "
+        "if ($item) { [BitConverter]::ToString($item.EDID).Replace('-','') }",
     ])
     if ps_edid:
         try:
@@ -560,24 +594,39 @@ def _get_windows_info() -> Dict[str, Any]:
         except ValueError:
             pass
 
-    # ── HDR status via WMI / Advanced Color ──────────────────────────────
-    ps_hdr = _run([
-        "powershell", "-NoProfile", "-Command",
-        "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBasicDisplayParams"
-        " | Select-Object -First 1).DisplayTransferCharacteristic",
-    ])
-    if ps_hdr and ps_hdr.strip():
-        info["hdr_tier"] = f"Transfer characteristic {ps_hdr.strip()}"
+    # ── HDR from EDID CTA extension (already parsed above) ───────────────
+    # If parse_edid found HDR static metadata, promote it to hdr_tier.
+    hdr_sup = info.get("hdr_supported")
+    if hdr_sup:
+        lum = info.get("max_luminance_nits")
+        info["hdr_tier"] = hdr_sup + (f" (~{lum} cd/m²)" if lum else "")
+
+    # ── Adaptive sync from EDID refresh range ────────────────────────────
+    rr_min = info.get("min_refresh_hz")
+    rr_max = info.get("max_refresh_hz")
+    if rr_min and rr_max and rr_max > rr_min:
+        info["adaptive_sync"] = True
+        info["adaptive_sync_range"] = f"{rr_min}–{rr_max} Hz"
 
     # ── ICC profile ───────────────────────────────────────────────────────
     ps_icc = _run([
         "powershell", "-NoProfile", "-Command",
-        "Get-WmiObject -Namespace root/WMI -Class WmiMonitorColorCharacteristics"
-        " | Select-Object -First 1 | ConvertTo-Json",
+        "Get-ChildItem "
+        "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\"
+        "{4d36e96e-e325-11ce-bfc1-08002be10318}\\*' "
+        "-ErrorAction SilentlyContinue | ForEach-Object { "
+        "$p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue; "
+        "if ($p.ICMProfile) { $p.ICMProfile -join ', ' } "
+        "} | Select-Object -First 1",
     ])
-    # Colour characteristics via WMI are complex; we just note availability
     if ps_icc and ps_icc.strip():
-        info["icc_profile_name"] = "System ICC profile (WMI)"
+        names = ps_icc.strip()
+        info["icc_profile_name"] = names
+        info["icc_profile_path"] = os.path.join(
+            os.environ.get("SystemRoot", r"C:\Windows"),
+            "system32", "spool", "drivers", "color",
+            names.split(",")[0].strip(),
+        )
 
     return info
 
@@ -618,6 +667,8 @@ def get_display_info() -> Dict[str, Any]:
         "adaptive_sync_range": None,
         "hdr_tier":           None,
         "hdr_active":         None,
+        "hdr_supported":      None,
+        "max_luminance_nits": None,
         "true_tone":          None,
         "icc_profile_name":   None,
         "icc_profile_path":   None,
