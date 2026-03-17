@@ -3,6 +3,94 @@ Tools to evaluate the hardware of a PC.
 
 ---
 
+## Display Evaluator  *(implements [issue #2](https://github.com/usivagna/pc-eval/issues/2))*
+
+A tabbed desktop GUI (`display_eval.py`) that collects and presents comprehensive
+display data in two clearly labelled categories: **Self-Reported / Unverified**
+(from the OS and EDID) and placeholders for **Hardware Verified** results
+(which require a colorimeter).
+
+### Features
+
+#### Tab 1 – Self-Reported Info
+All values are displayed with a prominent ⚠️ warning that they are manufacturer-declared
+and have not been independently verified.
+
+- Detected resolution and refresh rate
+- Adaptive sync support and range
+- HDR support tier (as signalled to the OS)
+- Colour gamut coverage (sRGB, DCI-P3, Adobe RGB percentages calculated from
+  EDID chromaticity coordinates using the Sutherland-Hodgman algorithm)
+- CIE xy chromaticity coordinates parsed directly from EDID
+- Active ICC / colour profile name and path
+- True Tone / ambient colour adjustment status (macOS)
+- Panel interface type from EDID (DisplayPort, HDMI, etc.)
+- Manufacturer, model name, serial number, and manufacture date from EDID
+
+#### Tab 2 – Visual Evaluation
+Generate and view fullscreen test patterns; record a 1–5 rating and free-text
+notes for each:
+
+| Pattern | What to observe |
+|---------|-----------------|
+| Solid White | Uniformity, bright-spot clouding, backlight bleed |
+| 50% Gray | Mid-tone uniformity and panel unevenness |
+| Solid Black | Backlight bleed, IPS glow, VA blackout zones |
+| Black→White Gradient | Banding and abrupt tonal transitions |
+| Gamma Ramp Patches | Evenly-spaced brightness steps |
+| UFO Scrolling Bars | Ghosting and smearing at three scroll speeds |
+| Colour Checker Grid | Hue accuracy across primaries, secondaries, skin tones, neutrals |
+
+#### Tab 3 – Refresh & Sync
+- Reports refresh rate, adaptive sync support and range from the OS / EDID.
+- **Frame-Pacing Test** – animated fullscreen bar with live frame counter and
+  measured FPS readout so the user can visually confirm smoothness.
+
+#### Tab 4 – HDR & Colour
+- Active HDR mode from OS APIs.
+- Currently active ICC profile and colour space.
+- True Tone / ambient adaptation status (macOS).
+
+#### Tab 5 – Scorecard
+Compares self-reported specs against Apple display reference targets:
+
+| Metric | Target |
+|--------|--------|
+| PPI | ≥ 218 PPI (MacBook) / ≥ 254 PPI (iPhone-class) |
+| DCI-P3 gamut | ≥ 95% |
+| HDR | DisplayHDR 1000 |
+| Refresh | 1–120 Hz adaptive |
+
+Each metric is labelled **PASS**, **REVIEW**, or **FAIL** with an explanation
+that self-reported values are unverified.  Four **Hardware Verified** placeholder
+rows (ΔE, peak brightness, contrast ratio, measured gamut) are stubbed out with
+a note that they require a colorimeter and DisplayCAL / CalMAN integration.
+
+### Platform support
+
+| Platform | Resolution / Refresh | EDID | ICC Profile | HDR / Sync |
+|----------|---------------------|------|-------------|------------|
+| macOS | `system_profiler` | `ioreg` | `~/Library/ColorSync/Profiles` | `system_profiler` |
+| Linux | `xrandr` | `/sys/class/drm/*/edid` | `colormgr` | `xrandr` |
+| Windows | WMI / PowerShell | Registry | WMI | WMI |
+
+### Running the Display Evaluator
+
+```bash
+python3 display_eval.py
+```
+
+### Running the Display Evaluator tests
+
+```bash
+python3 -m unittest test_display_info -v
+```
+
+All 60 tests cover EDID parsing, gamut coverage calculation, polygon geometry,
+scorecard logic, and the `get_display_info()` interface.
+
+---
+
 ## Retina Display Checker
 
 A Python/tkinter desktop GUI that tells you whether your display qualifies as a
