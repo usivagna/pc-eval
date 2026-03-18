@@ -580,11 +580,12 @@ def _get_windows_info() -> Dict[str, Any]:
     # ── EDID from registry ────────────────────────────────────────────────
     ps_edid = _run([
         "powershell", "-NoProfile", "-Command",
-        "$item = Get-ItemProperty "
-        "'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\DISPLAY\\*\\*\\Device Parameters' "
-        "-Name EDID -ErrorAction SilentlyContinue "
-        "| Where-Object { $_.EDID } | Select-Object -First 1; "
-        "if ($item) { [BitConverter]::ToString($item.EDID).Replace('-','') }",
+        "$mon = Get-PnpDevice -Class Monitor -Status OK -ErrorAction SilentlyContinue "
+        "| Select-Object -First 1; "
+        "if ($mon) { "
+        "$path = 'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\' + $mon.InstanceId + '\\Device Parameters'; "
+        "$item = Get-ItemProperty $path -Name EDID -ErrorAction SilentlyContinue; "
+        "if ($item) { [BitConverter]::ToString($item.EDID).Replace('-','') } }",
     ])
     if ps_edid:
         try:
