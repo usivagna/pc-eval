@@ -182,7 +182,10 @@ class PCEvalApp(tk.Tk):
         ttk.Label(input_frame, text="Screen diagonal (inches):").grid(
             row=0, column=0, sticky="w", padx=(4, 8), pady=self._PADY,
         )
-        self._diagonal_var = tk.StringVar(value="")
+        detected_diag = self._display_info.get("diagonal_inches")
+        self._diagonal_var = tk.StringVar(
+            value=str(detected_diag) if detected_diag else ""
+        )
         diag_entry = ttk.Entry(input_frame, textvariable=self._diagonal_var, width=10)
         diag_entry.grid(row=0, column=1, sticky="w", pady=self._PADY)
         diag_entry.bind("<KeyRelease>", lambda _e: self._update_display_scores())

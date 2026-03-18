@@ -178,6 +178,7 @@ def parse_edid(data: bytes) -> Dict[str, Any]:
         "gamut_adobergb_pct": None,
         "hdr_supported":      None,
         "max_luminance_nits": None,
+        "diagonal_inches":    None,
     }
 
     if len(data) < 128 or data[:8] != _EDID_HEADER:
@@ -204,6 +205,14 @@ def parse_edid(data: bytes) -> Dict[str, Any]:
         result["panel_type"] = _DIGITAL_INTERFACE.get(iface, "Digital")
     else:
         result["panel_type"] = "Analog (VGA)"
+
+    # ── Physical screen size (bytes 21–22, in cm) ─────────────────────────
+    h_cm = data[21]
+    v_cm = data[22]
+    if h_cm > 0 and v_cm > 0:
+        result["diagonal_inches"] = round(
+            math.sqrt(h_cm ** 2 + v_cm ** 2) / 2.54, 1
+        )
 
     # ── Chromaticity coordinates (bytes 25–34) ────────────────────────────
     # Byte 25: Rx[1:0] Ry[1:0] Gx[1:0] Gy[1:0]
@@ -251,16 +260,17 @@ def parse_edid(data: bytes) -> Dict[str, Any]:
         result["serial_number"] = str(serial_bin)
 
     # ── CTA-861 extension block (HDR static metadata) ─────────────────
-    if len(data) >= 256 and data[128] == 0x02:  # CTA extension tag
-        ext = data[128:256]
-        dtd_offset = ext[2]
-        pos = 4
-        while pos < dtd_offset and pos < 126:
-            tag = (ext[pos] >> 5) & 0x07
-            length = ext[pos] & 0x1F
-            if pos + 1 + length > 126:
+    def _parse_cta_blocks(buf: bytes) -> None:
+        """Scan CTA data blocks in *buf* and populate HDR fields in *result*."""
+        pos = 0
+        end = len(buf)
+        while pos < end:
+            hdr_byte = buf[pos]
+            tag    = (hdr_byte >> 5) & 0x07
+            length = hdr_byte & 0x1F
+            if pos + 1 + length > end:
                 break
-            block_data = ext[pos + 1: pos + 1 + length]
+            block_data = buf[pos + 1: pos + 1 + length]
             if tag == 7 and length > 0:  # Extended tag
                 ext_tag = block_data[0]
                 if ext_tag == 6 and length > 1:  # HDR Static Metadata
@@ -270,14 +280,39 @@ def parse_edid(data: bytes) -> Dict[str, Any]:
                         hdrs.append("HDR10")
                     if eotf & 0x08:
                         hdrs.append("HLG")
-                    if hdrs:
+                    if hdrs and result["hdr_supported"] is None:
                         result["hdr_supported"] = ", ".join(hdrs)
-                    if length > 3:
+                    if length > 3 and result["max_luminance_nits"] is None:
                         code = block_data[3]
                         result["max_luminance_nits"] = int(
                             50 * (2 ** (code / 32))
                         )
             pos += 1 + length
+
+    # Check every 128-byte extension block
+    for ext_off in range(128, len(data), 128):
+        if ext_off + 128 > len(data):
+            break
+        ext_tag_byte = data[ext_off]
+
+        if ext_tag_byte == 0x02:  # CTA-861 extension
+            ext = data[ext_off: ext_off + 128]
+            dtd_offset = ext[2]
+            _parse_cta_blocks(ext[4: min(dtd_offset, 126)])
+
+        elif ext_tag_byte == 0x70:  # DisplayID 2.x extension
+            ext = data[ext_off: ext_off + 128]
+            num_bytes = ext[2]
+            pos = 5
+            end = min(5 + num_bytes, 126)
+            while pos + 2 < end:
+                block_type = ext[pos]
+                block_len  = ext[pos + 2]
+                if pos + 3 + block_len > end:
+                    break
+                if block_type == 0x81:  # CTA Data Block Collection
+                    _parse_cta_blocks(ext[pos + 3: pos + 3 + block_len])
+                pos += 3 + block_len
 
     return result
 
@@ -595,6 +630,11 @@ def _get_windows_info() -> Dict[str, Any]:
         except ValueError:
             pass
 
+    # ── Prefer EDID max refresh over WMI (WMI often under-reports with VRR) ─
+    edid_max_rr = info.get("max_refresh_hz")
+    if edid_max_rr and info.get("refresh_rate", 0) < edid_max_rr:
+        info["refresh_rate"] = float(edid_max_rr)
+
     # ── HDR from EDID CTA extension (already parsed above) ───────────────
     # If parse_edid found HDR static metadata, promote it to hdr_tier.
     hdr_sup = info.get("hdr_supported")
@@ -692,6 +732,7 @@ def get_display_info() -> Dict[str, Any]:
         "gamut_srgb_pct":     None,
         "gamut_p3_pct":       None,
         "gamut_adobergb_pct": None,
+        "diagonal_inches":    None,
     }
 
     system = platform.system()
