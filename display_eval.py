@@ -10,6 +10,9 @@ A tabbed desktop GUI that scores your system against Apple standards:
   Tab 2 – Processor  : auto-detects CPU / SoC and scores it across seven
                        dimensions vs the Apple M3 Pro baseline.
 
+When multiple monitors are connected each display gets its own tab with an
+independent scorecard.
+
 Run with:
     python display_eval.py
 """
