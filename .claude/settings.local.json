@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(powershell -NoProfile -Command \":*)",
-      "Bash(.venv/Scripts/python.exe -m unittest test_display_info -v)"
-    ]
-  }
-}
