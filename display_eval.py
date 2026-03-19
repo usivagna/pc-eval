@@ -105,9 +105,15 @@ class _DisplayCard(ttk.Frame):
 
     def __init__(self, parent: tk.Widget, info: Dict[str, Any]) -> None:
         super().__init__(parent, padding=10)
-        self._info     = info
-        self._screen_w = info.get("resolution_width")  or 0
-        self._screen_h = info.get("resolution_height") or 0
+        self._info = info
+        # Fall back to tkinter's own screen detection when the OS/EDID
+        # collection did not return a resolution.
+        self._screen_w = (
+            info.get("resolution_width") or self.winfo_screenwidth()
+        )
+        self._screen_h = (
+            info.get("resolution_height") or self.winfo_screenheight()
+        )
         self._build_ui()
         self._update_scores()
 
