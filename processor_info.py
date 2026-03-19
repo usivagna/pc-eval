@@ -638,19 +638,19 @@ def _get_windows_info() -> Dict[str, Any]:
 # Vendor / architecture helpers
 # ---------------------------------------------------------------------------
 
-def _infer_vendor(model: str) -> str:
-    """Return a human-friendly vendor name from the CPU model string."""
-    lower = model.lower()
-    if "apple" in lower or " m1" in lower or " m2" in lower or " m3" in lower or " m4" in lower:
+def _infer_vendor(model: str, vendor_id: str = "") -> str:
+    """Return a human-friendly vendor name from the CPU model string and vendor ID."""
+    combined = (model + " " + vendor_id).lower()
+    if "apple" in combined or " m1" in combined or " m2" in combined or " m3" in combined or " m4" in combined:
         return "Apple"
-    if "intel" in lower or "core" in lower:
-        return "Intel"
-    if "amd" in lower or "ryzen" in lower or "epyc" in lower:
-        return "AMD"
-    if "qualcomm" in lower or "snapdragon" in lower:
+    if "qualcomm" in combined or "snapdragon" in combined:
         return "Qualcomm"
-    if "mediatek" in lower:
+    if "mediatek" in combined:
         return "MediaTek"
+    if "amd" in combined or "ryzen" in combined or "epyc" in combined:
+        return "AMD"
+    if "intel" in combined or "core i" in combined or "core ultra" in combined or "xeon" in combined:
+        return "Intel"
     return "Unknown"
 
 
@@ -724,7 +724,7 @@ def get_processor_info() -> Dict[str, Any]:
     model = base.get("cpu_model") or ""
     vendor_id = platform_data.get("vendor_id", "")
     if model and base["vendor"] is None:
-        base["vendor"] = _infer_vendor(model)
+        base["vendor"] = _infer_vendor(model, vendor_id)
     if model and base["architecture"] is None:
         base["architecture"] = _infer_arch(model, vendor_id)
 
