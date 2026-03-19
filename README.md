@@ -3,68 +3,65 @@ Tools to evaluate the hardware of a PC.
 
 ---
 
-## Display Evaluator  *(implements [issue #2](https://github.com/usivagna/pc-eval/issues/2))*
+## Project structure
 
-A tabbed desktop GUI (`display_eval.py`) that collects and presents comprehensive
-display data in two clearly labelled categories: **Self-Reported / Unverified**
-(from the OS and EDID) and placeholders for **Hardware Verified** results
-(which require a colorimeter).
+```
+pc-eval/
+├── display_info.py          # Core library: EDID parsing, gamut maths, OS queries
+├── display_eval.py          # Display Evaluator GUI (tkinter)
+├── retina_checker.py        # Retina Display Checker GUI (tkinter)
+├── test_display_info.py     # Unit tests for display_info.py (67 tests)
+└── test_retina_checker.py   # Unit tests for retina_checker.py (23 tests)
+```
 
-### Features
+**Requirements:** Python 3.8+, tkinter (bundled on macOS/Windows; `python3-tk`
+on Linux).  No third-party packages are required.
 
-#### Tab 1 – Self-Reported Info
-All values are displayed with a prominent ⚠️ warning that they are manufacturer-declared
-and have not been independently verified.
+---
 
-- Detected resolution and refresh rate
+## Display Evaluator
+
+A desktop GUI (`display_eval.py`) that auto-detects your display's specs,
+highlights key values, and scores them against Apple's Retina Display reference
+targets.
+
+### Multi-monitor support
+
+When more than one monitor is connected the evaluator automatically enumerates
+all displays and shows an **independent scorecard tab for each one**.  The
+primary display is always the first tab.
+
+### Detected display information
+
+The following values are read from the OS and EDID and labelled as
+self-reported / unverified:
+
+- Resolution and refresh rate
 - Adaptive sync support and range
 - HDR support tier (as signalled to the OS)
-- Colour gamut coverage (sRGB, DCI-P3, Adobe RGB percentages calculated from
-  EDID chromaticity coordinates using the Sutherland-Hodgman algorithm)
-- CIE xy chromaticity coordinates parsed directly from EDID
-- Active ICC / colour profile name and path
+- Colour gamut coverage — sRGB, DCI-P3, and Adobe RGB percentages calculated
+  from EDID chromaticity coordinates using the Sutherland-Hodgman polygon
+  clipping algorithm
+- Active ICC / colour profile name
 - True Tone / ambient colour adjustment status (macOS)
 - Panel interface type from EDID (DisplayPort, HDMI, etc.)
 - Manufacturer, model name, serial number, and manufacture date from EDID
 
-#### Tab 2 – Visual Evaluation
-Generate and view fullscreen test patterns; record a 1–5 rating and free-text
-notes for each:
+### Scorecard
 
-| Pattern | What to observe |
-|---------|-----------------|
-| Solid White | Uniformity, bright-spot clouding, backlight bleed |
-| 50% Gray | Mid-tone uniformity and panel unevenness |
-| Solid Black | Backlight bleed, IPS glow, VA blackout zones |
-| Black→White Gradient | Banding and abrupt tonal transitions |
-| Gamma Ramp Patches | Evenly-spaced brightness steps |
-| UFO Scrolling Bars | Ghosting and smearing at three scroll speeds |
-| Colour Checker Grid | Hue accuracy across primaries, secondaries, skin tones, neutrals |
-
-#### Tab 3 – Refresh & Sync
-- Reports refresh rate, adaptive sync support and range from the OS / EDID.
-- **Frame-Pacing Test** – animated fullscreen bar with live frame counter and
-  measured FPS readout so the user can visually confirm smoothness.
-
-#### Tab 4 – HDR & Colour
-- Active HDR mode from OS APIs.
-- Currently active ICC profile and colour space.
-- True Tone / ambient adaptation status (macOS).
-
-#### Tab 5 – Scorecard
 Compares self-reported specs against Apple display reference targets:
 
-| Metric | Target |
-|--------|--------|
-| PPI | ≥ 218 PPI (MacBook) / ≥ 254 PPI (iPhone-class) |
-| DCI-P3 gamut | ≥ 95% |
-| HDR | DisplayHDR 1000 |
-| Refresh | 1–120 Hz adaptive |
+| Metric | Target | Result labels |
+|--------|--------|--------------|
+| Pixel Density (PPI) | ≥ min PPI for selected viewing distance | PASS / FAIL |
+| DCI-P3 gamut | ≥ 95% | PASS / REVIEW / FAIL |
+| Refresh Rate | ≥ 120 Hz | PASS / REVIEW / FAIL |
+| HDR Support | HDR detected | PASS / FAIL |
 
-Each metric is labelled **PASS**, **REVIEW**, or **FAIL** with an explanation
-that self-reported values are unverified.  Four **Hardware Verified** placeholder
-rows (ΔE, peak brightness, contrast ratio, measured gamut) are stubbed out with
-a note that they require a colorimeter and DisplayCAL / CalMAN integration.
+An overall letter grade (A–F) is calculated from the four metrics.  Four
+**Hardware Verified** placeholder rows (ΔE, peak brightness, contrast ratio,
+measured gamut) are stubbed out with a note that they require a colorimeter
+and DisplayCAL / CalMAN integration.
 
 ### Platform support
 
@@ -86,16 +83,17 @@ python3 display_eval.py
 python3 -m unittest test_display_info -v
 ```
 
-All 60 tests cover EDID parsing, gamut coverage calculation, polygon geometry,
-scorecard logic, and the `get_display_info()` interface.
+All 67 tests cover EDID parsing, gamut coverage calculation, polygon geometry,
+scorecard logic, `get_display_info()`, and the new `get_all_displays_info()`
+multi-monitor API.
 
 ---
 
 ## Retina Display Checker
 
-A Python/tkinter desktop GUI that tells you whether your display qualifies as a
-**Retina Display** (as defined by Apple) based on your screen's resolution,
-physical size, and your assumed viewing distance.
+A Python/tkinter desktop GUI (`retina_checker.py`) that tells you whether your
+display qualifies as a **Retina Display** (as defined by Apple) based on your
+screen's resolution, physical size, and your assumed viewing distance.
 
 ### How it works
 
@@ -177,3 +175,4 @@ python3 -m unittest test_retina_checker -v
 ```
 
 All 23 tests should pass.
+

@@ -15,6 +15,7 @@ from display_info import (
     _polygon_area,
     calculate_gamut_coverage,
     decode_manufacturer_id,
+    get_all_displays_info,
     get_display_info,
     parse_edid,
     scorecard,
@@ -455,6 +456,59 @@ class TestGetDisplayInfo(unittest.TestCase):
             if val is not None:
                 with self.subTest(key=key):
                     self.assertIsInstance(val, (int, float))
+
+
+# ---------------------------------------------------------------------------
+# Tests: get_all_displays_info
+# ---------------------------------------------------------------------------
+
+class TestGetAllDisplaysInfo(unittest.TestCase):
+
+    def test_returns_list(self):
+        displays = get_all_displays_info()
+        self.assertIsInstance(displays, list)
+
+    def test_non_empty(self):
+        displays = get_all_displays_info()
+        self.assertGreater(len(displays), 0)
+
+    def test_each_entry_is_dict(self):
+        for info in get_all_displays_info():
+            with self.subTest(info=info.get("monitor_name")):
+                self.assertIsInstance(info, dict)
+
+    def test_each_entry_has_platform_key(self):
+        for info in get_all_displays_info():
+            with self.subTest(info=info.get("monitor_name")):
+                self.assertIn("platform", info)
+                self.assertIsInstance(info["platform"], str)
+
+    def test_each_entry_has_expected_keys(self):
+        expected_keys = [
+            "resolution_width", "resolution_height", "refresh_rate",
+            "adaptive_sync", "hdr_tier", "gamut_srgb_pct", "gamut_p3_pct",
+            "gamut_adobergb_pct", "manufacturer_id", "monitor_name",
+            "serial_number", "icc_profile_name",
+        ]
+        for info in get_all_displays_info():
+            for key in expected_keys:
+                with self.subTest(monitor=info.get("monitor_name"), key=key):
+                    self.assertIn(key, info)
+
+    def test_numeric_fields_are_numeric_or_none(self):
+        for info in get_all_displays_info():
+            for key in ("resolution_width", "resolution_height", "refresh_rate",
+                        "gamut_srgb_pct", "gamut_p3_pct", "gamut_adobergb_pct"):
+                val = info.get(key)
+                if val is not None:
+                    with self.subTest(monitor=info.get("monitor_name"), key=key):
+                        self.assertIsInstance(val, (int, float))
+
+    def test_first_entry_matches_get_display_info_platform(self):
+        """Primary display platform must match get_display_info() platform."""
+        single = get_display_info()
+        all_displays = get_all_displays_info()
+        self.assertEqual(all_displays[0]["platform"], single["platform"])
 
 
 # ---------------------------------------------------------------------------
