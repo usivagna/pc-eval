@@ -103,7 +103,8 @@ class PCEvalApp(tk.Tk):
         self.resizable(False, False)
 
         # Fetch system info up-front so both tabs share the same snapshot
-        self._display_info: Dict[str, Any] = di.get_display_info()
+        self._all_displays: List[Dict[str, Any]] = di.get_all_displays_info()
+        self._display_info: Dict[str, Any] = self._all_displays[0]
         self._proc_info: Dict[str, Any] = pi.get_processor_info()
 
         self._screen_w = (
@@ -144,36 +145,59 @@ class PCEvalApp(tk.Tk):
         info_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
         val_font = font.Font(family="Helvetica", size=11, weight="bold")
-        inf = self._display_info
+        self._info_val_font = val_font
 
-        detected_rows = [
-            ("Monitor",
-             inf.get("monitor_name") or inf.get("manufacturer_name")
-             or inf.get("manufacturer_id") or "Unknown"),
-            ("Resolution", f"{self._screen_w} x {self._screen_h} px"),
-            ("Refresh Rate",
-             f"{inf['refresh_rate']:.0f} Hz" if inf.get("refresh_rate") else "Unknown"),
-            ("Adaptive Sync",
-             inf.get("adaptive_sync_range") if inf.get("adaptive_sync")
-             else "Not detected"),
-            ("DCI-P3 Gamut",
-             f"{inf['gamut_p3_pct']:.1f}%"
-             if inf.get("gamut_p3_pct") is not None else "Unknown"),
-            ("sRGB Gamut",
-             f"{inf['gamut_srgb_pct']:.1f}%"
-             if inf.get("gamut_srgb_pct") is not None else "Unknown"),
-            ("HDR", str(inf.get("hdr_tier") or "Not detected")),
-            ("Panel Type", str(inf.get("panel_type") or "Unknown")),
-            ("Color Profile", str(inf.get("icc_profile_name") or "Not detected")),
+        # ── Monitor selector (visible only when >1 display) ────────────
+        self._monitor_names: List[str] = []
+        for i, d in enumerate(self._all_displays):
+            name = (d.get("monitor_name")
+                    or d.get("manufacturer_name")
+                    or d.get("manufacturer_id")
+                    or f"Display {i + 1}")
+            self._monitor_names.append(name)
+
+        monitor_row = 0
+        ttk.Label(info_frame, text="Monitor:").grid(
+            row=monitor_row, column=0, sticky="w", padx=(4, 10), pady=2,
+        )
+
+        if len(self._all_displays) > 1:
+            self._monitor_combo = ttk.Combobox(
+                info_frame,
+                values=self._monitor_names,
+                state="readonly",
+                width=30,
+                font=val_font,
+            )
+            self._monitor_combo.current(0)
+            self._monitor_combo.grid(
+                row=monitor_row, column=1, sticky="w", padx=4, pady=2,
+            )
+            self._monitor_combo.bind(
+                "<<ComboboxSelected>>", lambda _e: self._on_monitor_changed(),
+            )
+        else:
+            self._monitor_combo = None
+            tk.Label(
+                info_frame, text=self._monitor_names[0],
+                font=val_font, fg="#1a1a1a",
+            ).grid(row=monitor_row, column=1, sticky="w", padx=4, pady=2)
+
+        # ── Remaining detected-info rows (populated dynamically) ───────
+        self._detected_labels: List[Dict[str, tk.Label]] = []
+        detail_fields = [
+            "Resolution", "Refresh Rate", "Adaptive Sync",
+            "DCI-P3 Gamut", "sRGB Gamut", "HDR", "Panel Type", "Color Profile",
         ]
+        for r_offset, label_text in enumerate(detail_fields, start=1):
+            lbl = ttk.Label(info_frame, text=label_text + ":")
+            lbl.grid(row=r_offset, column=0, sticky="w", padx=(4, 10), pady=2)
+            val_lbl = tk.Label(info_frame, text="—", font=val_font, fg="#1a1a1a")
+            val_lbl.grid(row=r_offset, column=1, sticky="w", padx=4, pady=2)
+            self._detected_labels.append({"key": label_text, "widget": val_lbl})
 
-        for r, (label, value) in enumerate(detected_rows):
-            ttk.Label(info_frame, text=label + ":").grid(
-                row=r, column=0, sticky="w", padx=(4, 10), pady=2,
-            )
-            tk.Label(info_frame, text=value, font=val_font, fg="#1a1a1a").grid(
-                row=r, column=1, sticky="w", padx=4, pady=2,
-            )
+        self._info_frame = info_frame
+        self._refresh_detected_info()
 
         # ── Setup inputs ───────────────────────────────────────────────
         input_frame = ttk.LabelFrame(tab, text="  Your Setup  ", padding=10)
@@ -261,6 +285,43 @@ class PCEvalApp(tk.Tk):
             font=font.Font(family="Helvetica", size=11),
         )
         self._display_overall_desc.grid(row=7, column=0, columnspan=3, pady=(0, 8))
+
+    # ------------------------------------------------------------------
+    # Monitor switching helpers
+    # ------------------------------------------------------------------
+
+    def _refresh_detected_info(self) -> None:
+        """Update the detected-info labels to reflect ``self._display_info``."""
+        inf = self._display_info
+        w = inf.get("resolution_width") or self.winfo_screenwidth()
+        h = inf.get("resolution_height") or self.winfo_screenheight()
+        self._screen_w = w
+        self._screen_h = h
+
+        values = {
+            "Resolution":    f"{w} x {h} px",
+            "Refresh Rate":  (f"{inf['refresh_rate']:.0f} Hz"
+                              if inf.get("refresh_rate") else "Unknown"),
+            "Adaptive Sync": (inf.get("adaptive_sync_range")
+                              if inf.get("adaptive_sync") else "Not detected"),
+            "DCI-P3 Gamut":  (f"{inf['gamut_p3_pct']:.1f}%"
+                              if inf.get("gamut_p3_pct") is not None else "Unknown"),
+            "sRGB Gamut":    (f"{inf['gamut_srgb_pct']:.1f}%"
+                              if inf.get("gamut_srgb_pct") is not None else "Unknown"),
+            "HDR":           str(inf.get("hdr_tier") or "Not detected"),
+            "Panel Type":    str(inf.get("panel_type") or "Unknown"),
+            "Color Profile": str(inf.get("icc_profile_name") or "Not detected"),
+        }
+        for entry in self._detected_labels:
+            text = values.get(entry["key"], "—")
+            entry["widget"].configure(text=text)
+
+    def _on_monitor_changed(self) -> None:
+        """Handle monitor dropdown selection change."""
+        idx = self._monitor_combo.current()  # type: ignore[union-attr]
+        self._display_info = self._all_displays[idx]
+        self._refresh_detected_info()
+        self._update_display_scores()
 
     # ------------------------------------------------------------------
     # Display score computation

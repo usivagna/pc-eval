@@ -672,9 +672,168 @@ def _get_windows_info() -> Dict[str, Any]:
     return info
 
 
+def _get_windows_info_all() -> List[Dict[str, Any]]:
+    """Collect display info for **every** connected monitor on Windows.
+
+    Returns a list of dicts, one per monitor, each with the same keys as
+    :func:`_get_windows_info`.  The first entry corresponds to the primary
+    display.
+    """
+    displays: List[Dict[str, Any]] = []
+
+    # ── Per-monitor resolution via Win32_VideoController ─────────────────
+    ps_vc = _run([
+        "powershell", "-NoProfile", "-Command",
+        "Get-WmiObject Win32_VideoController | "
+        "Select-Object CurrentHorizontalResolution,CurrentVerticalResolution,"
+        "CurrentRefreshRate | ConvertTo-Json",
+    ])
+    vc_list: List[Dict[str, Any]] = []
+    if ps_vc:
+        try:
+            parsed = json.loads(ps_vc)
+            vc_list = parsed if isinstance(parsed, list) else [parsed]
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    # ── EDID blobs for all monitors ──────────────────────────────────────
+    ps_edid_all = _run([
+        "powershell", "-NoProfile", "-Command",
+        "$mons = Get-PnpDevice -Class Monitor -Status OK -ErrorAction SilentlyContinue; "
+        "$results = @(); "
+        "foreach ($mon in $mons) { "
+        "  $path = 'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\' + $mon.InstanceId + '\\Device Parameters'; "
+        "  $item = Get-ItemProperty $path -Name EDID -ErrorAction SilentlyContinue; "
+        "  if ($item) { $results += [BitConverter]::ToString($item.EDID).Replace('-','') } "
+        "  else { $results += '' } "
+        "} "
+        "$results | ConvertTo-Json",
+    ])
+    edid_hexes: List[str] = []
+    if ps_edid_all:
+        try:
+            parsed = json.loads(ps_edid_all)
+            edid_hexes = parsed if isinstance(parsed, list) else [parsed]
+        except (json.JSONDecodeError, TypeError):
+            edid_hexes = [ps_edid_all.strip()] if ps_edid_all.strip() else []
+
+    # ── ICC profiles (shared across monitors – return first found) ────────
+    icc_name: Optional[str] = None
+    icc_path: Optional[str] = None
+    ps_icc = _run([
+        "powershell", "-NoProfile", "-Command",
+        "Get-ChildItem "
+        "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\"
+        "{4d36e96e-e325-11ce-bfc1-08002be10318}\\*' "
+        "-ErrorAction SilentlyContinue | ForEach-Object { "
+        "$p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue; "
+        "if ($p.ICMProfile) { $p.ICMProfile -join ', ' } "
+        "} | Select-Object -First 1",
+    ])
+    if ps_icc and ps_icc.strip():
+        icc_name = ps_icc.strip()
+        icc_path = os.path.join(
+            os.environ.get("SystemRoot", r"C:\Windows"),
+            "system32", "spool", "drivers", "color",
+            icc_name.split(",")[0].strip(),
+        )
+
+    # ── Merge EDID + WMI into per-display dicts ─────────────────────────
+    count = max(len(edid_hexes), len(vc_list), 1)
+    for idx in range(count):
+        info: Dict[str, Any] = {}
+
+        # WMI resolution / refresh
+        if idx < len(vc_list):
+            vc = vc_list[idx]
+            info["resolution_width"]  = vc.get("CurrentHorizontalResolution")
+            info["resolution_height"] = vc.get("CurrentVerticalResolution")
+            rr = vc.get("CurrentRefreshRate")
+            if rr:
+                info["refresh_rate"] = float(rr)
+
+        # EDID
+        if idx < len(edid_hexes) and edid_hexes[idx]:
+            try:
+                edid_bytes = bytes.fromhex(edid_hexes[idx].strip())
+                edid_info  = parse_edid(edid_bytes)
+                info.update({k: v for k, v in edid_info.items() if v is not None})
+            except ValueError:
+                pass
+
+        # Prefer EDID max refresh over WMI
+        edid_max_rr = info.get("max_refresh_hz")
+        if edid_max_rr and info.get("refresh_rate", 0) < edid_max_rr:
+            info["refresh_rate"] = float(edid_max_rr)
+
+        # HDR
+        hdr_sup = info.get("hdr_supported")
+        if hdr_sup:
+            lum = info.get("max_luminance_nits")
+            info["hdr_tier"] = hdr_sup + (f" (~{lum} cd/m²)" if lum else "")
+
+        # Adaptive sync
+        rr_min = info.get("min_refresh_hz")
+        rr_max = info.get("max_refresh_hz")
+        if rr_min and rr_max and rr_max > rr_min:
+            info["adaptive_sync"] = True
+            info["adaptive_sync_range"] = f"{rr_min}–{rr_max} Hz"
+
+        # ICC
+        if icc_name:
+            info["icc_profile_name"] = icc_name
+            info["icc_profile_path"] = icc_path
+
+        displays.append(info)
+
+    return displays
+
+
 # ---------------------------------------------------------------------------
 # Main public collection function
 # ---------------------------------------------------------------------------
+
+
+def get_all_displays_info() -> List[Dict[str, Any]]:
+    """Collect display information for **all** connected displays.
+
+    Returns:
+        A list of dicts (one per display).  Each dict has the same keys as
+        :func:`get_display_info`.  The first entry is the primary display.
+    """
+    system = platform.system()
+
+    if system == "Windows":
+        per_display = _get_windows_info_all()
+    else:
+        # macOS / Linux: fall back to single-display collection for now
+        per_display = []
+
+    if not per_display:
+        # Fallback: wrap single-display result in a list
+        return [get_display_info()]
+
+    # Ensure every dict has the full set of base keys
+    base_keys = {
+        "platform", "resolution_width", "resolution_height", "refresh_rate",
+        "adaptive_sync", "adaptive_sync_range", "hdr_tier", "hdr_active",
+        "hdr_supported", "max_luminance_nits", "true_tone",
+        "icc_profile_name", "icc_profile_path", "is_retina",
+        "manufacturer_id", "manufacturer_name", "product_code",
+        "serial_number", "manufacture_week", "manufacture_year",
+        "monitor_name", "panel_type", "min_refresh_hz", "max_refresh_hz",
+        "color_rx", "color_ry", "color_gx", "color_gy",
+        "color_bx", "color_by", "color_wx", "color_wy",
+        "gamut_srgb_pct", "gamut_p3_pct", "gamut_adobergb_pct",
+        "diagonal_inches",
+    }
+    for d in per_display:
+        d.setdefault("platform", system)
+        for k in base_keys:
+            d.setdefault(k, None)
+
+    return per_display
+
 
 def get_display_info() -> Dict[str, Any]:
     """Collect display information for the primary display.
