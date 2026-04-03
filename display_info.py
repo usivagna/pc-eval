@@ -8,11 +8,13 @@ declarations or OS APIs and should be treated as indicative, not authoritative.
 
 Public API
 ----------
-``get_display_info()``     – Return a ``DisplayInfo`` dict for the primary display.
-``parse_edid(data)``       – Parse a raw EDID binary blob into a structured dict.
+``get_display_info()``         – Return a ``DisplayInfo`` dict for the primary display.
+``get_all_displays_info()``    – Return a list of ``DisplayInfo`` dicts, one per
+                                 connected display (primary first).
+``parse_edid(data)``           – Parse a raw EDID binary blob into a structured dict.
 ``calculate_gamut_coverage(primaries, reference)``
-                          – Return the % of *reference* gamut covered by *primaries*.
-``scorecard(info)``        – Compare ``DisplayInfo`` against Apple reference targets.
+                               – Return the % of *reference* gamut covered by *primaries*.
+``scorecard(info)``            – Compare ``DisplayInfo`` against Apple reference targets.
 """
 
 from __future__ import annotations
@@ -789,6 +791,181 @@ def _get_windows_info_all() -> List[Dict[str, Any]]:
     return displays
 
 
+def _get_macos_info_all() -> List[Dict[str, Any]]:
+    """Collect display info for *all* connected displays on macOS.
+
+    Uses ``system_profiler SPDisplaysDataType`` to enumerate displays and
+    ``ioreg -c IODisplayConnect`` to correlate raw EDID data by index.
+    """
+    import re as _re
+
+    displays: List[Dict[str, Any]] = []
+
+    raw = _run(["system_profiler", "SPDisplaysDataType", "-json"])
+    if raw:
+        try:
+            data = json.loads(raw)
+            for gpu in data.get("SPDisplaysDataType", []):
+                for disp in gpu.get("spdisplays_ndrvs", []):
+                    info: Dict[str, Any] = {}
+
+                    px_res = disp.get("spdisplays_pixelresolution", "")
+                    parts = px_res.replace("Retina", "").split("x")
+                    if len(parts) == 2:
+                        try:
+                            info["resolution_width"]  = int(parts[0].strip())
+                            info["resolution_height"] = int(parts[1].strip().split()[0])
+                        except ValueError:
+                            pass
+
+                    res = disp.get("spdisplays_resolution", "")
+                    if "@" in res and "Hz" in res:
+                        try:
+                            hz_part = res.split("@")[1].replace("Hz", "").strip()
+                            info["refresh_rate"] = float(hz_part)
+                        except (ValueError, IndexError):
+                            pass
+
+                    info["is_retina"] = (
+                        disp.get("spdisplays_retina") == "spdisplays_yes"
+                        or "Retina" in px_res
+                    )
+
+                    tt = disp.get("spdisplays_truetone", "")
+                    if tt:
+                        info["true_tone"] = "on" in tt.lower() or "yes" in tt.lower()
+
+                    hdr = disp.get("spdisplays_hdr", "")
+                    if hdr:
+                        info["hdr_tier"] = hdr
+
+                    displays.append(info)
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    # Correlate EDID data by index from ioreg
+    ioreg_out = _run(["ioreg", "-l", "-d", "0", "-r", "-c", "IODisplayConnect"])
+    if ioreg_out:
+        edid_hexes = _re.findall(
+            r'"IODisplayEDID"\s*=\s*<([0-9a-fA-F]+)>', ioreg_out
+        )
+        for i, info in enumerate(displays):
+            if i < len(edid_hexes):
+                try:
+                    edid_bytes = bytes.fromhex(edid_hexes[i])
+                    edid_info  = parse_edid(edid_bytes)
+                    info.update({k: v for k, v in edid_info.items() if v is not None})
+                except ValueError:
+                    pass
+
+    # ICC profile (list from per-user ColorSync directory)
+    cs_dir = os.path.expanduser("~/Library/ColorSync/Profiles")
+    if os.path.isdir(cs_dir) and displays:
+        profiles = [f for f in os.listdir(cs_dir) if f.endswith(".icc")]
+        if profiles:
+            displays[0]["icc_profile_name"] = profiles[0]
+            displays[0]["icc_profile_path"] = os.path.join(cs_dir, profiles[0])
+
+    # Adaptive sync per display
+    for info in displays:
+        if info.get("min_refresh_hz") and info.get("max_refresh_hz"):
+            if info["min_refresh_hz"] != info["max_refresh_hz"]:
+                info["adaptive_sync"]       = True
+                info["adaptive_sync_range"] = (
+                    f"{info['min_refresh_hz']}–{info['max_refresh_hz']} Hz"
+                )
+            else:
+                info["adaptive_sync"] = False
+
+    return displays
+
+
+def _get_linux_info_all() -> List[Dict[str, Any]]:
+    """Collect display info for *all* connected displays on Linux.
+
+    Uses ``xrandr`` for resolution/refresh data and ``/sys/class/drm/*/edid``
+    for raw EDID.  Connector names are normalised to match xrandr output.
+    """
+    import re as _re
+
+    # Parse xrandr to build a map of connected output → display info
+    xrandr_out = _run(["xrandr", "--verbose"])
+    xrandr_displays: Dict[str, Dict[str, Any]] = {}
+    if xrandr_out:
+        lines = xrandr_out.splitlines()
+        current_conn: Optional[str] = None
+        for line in lines:
+            m = _re.match(r"^(\S+)\s+connected(?:\s+primary)?\s+(\d+)x(\d+)", line)
+            if m:
+                current_conn = m.group(1)
+                xrandr_displays[current_conn] = {
+                    "resolution_width":  int(m.group(2)),
+                    "resolution_height": int(m.group(3)),
+                }
+            elif current_conn:
+                m2 = _re.search(r"(\d+\.\d+)\*", line)
+                if m2:
+                    xrandr_displays[current_conn]["refresh_rate"] = float(m2.group(1))
+                    current_conn = None
+
+        if "vrr" in xrandr_out.lower() or "freesync" in xrandr_out.lower():
+            for di in xrandr_displays.values():
+                di["adaptive_sync"] = True
+
+    all_infos: List[Dict[str, Any]] = []
+
+    drm_base = "/sys/class/drm"
+    if os.path.isdir(drm_base):
+        for connector in sorted(os.listdir(drm_base)):
+            edid_path = os.path.join(drm_base, connector, "edid")
+            if not os.path.isfile(edid_path):
+                continue
+            try:
+                with open(edid_path, "rb") as fh:
+                    edid_bytes = fh.read()
+                if len(edid_bytes) < 128:
+                    continue
+                info: Dict[str, Any] = {}
+
+                # Normalise DRM name to xrandr convention:
+                # "card0-HDMI-A-1" → try "HDMI-A-1", then "HDMI-1"
+                stripped = _re.sub(r"^card\d+-", "", connector)
+                fallback_connector = _re.sub(r"-A-(\d+)$", r"-\1", stripped)
+                xrandr_info = (
+                    xrandr_displays.get(stripped)
+                    or xrandr_displays.get(fallback_connector)
+                )
+                if xrandr_info:
+                    info.update(xrandr_info)
+
+                edid_info = parse_edid(edid_bytes)
+                info.update({k: v for k, v in edid_info.items() if v is not None})
+                all_infos.append(info)
+            except OSError:
+                pass
+
+    # Fall back to xrandr-only entries if no EDID files were readable
+    if not all_infos:
+        for di in xrandr_displays.values():
+            all_infos.append(dict(di))
+
+    # ICC profile
+    colormgr_out = _run(["colormgr", "get-profiles"])
+    if colormgr_out and all_infos:
+        m = _re.search(r"Object Path:\s+(.+)", colormgr_out)
+        if m:
+            all_infos[0]["icc_profile_path"] = m.group(1).strip()
+        m2 = _re.search(r"Profile ID:\s+(.+)", colormgr_out)
+        if m2:
+            all_infos[0]["icc_profile_name"] = m2.group(1).strip()
+
+    drm_hdr_path = "/sys/class/drm/card0-HDMI-A-1/hdr_output_metadata"
+    if os.path.exists(drm_hdr_path) and all_infos:
+        all_infos[0]["hdr_tier"] = "HDR (OS-signalled)"
+
+    return all_infos
+
+
 # ---------------------------------------------------------------------------
 # Main public collection function
 # ---------------------------------------------------------------------------
@@ -805,8 +982,11 @@ def get_all_displays_info() -> List[Dict[str, Any]]:
 
     if system == "Windows":
         per_display = _get_windows_info_all()
+    elif system == "Darwin":
+        per_display = _get_macos_info_all()
+    elif system == "Linux":
+        per_display = _get_linux_info_all()
     else:
-        # macOS / Linux: fall back to single-display collection for now
         per_display = []
 
     if not per_display:
