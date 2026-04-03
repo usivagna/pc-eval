@@ -34,10 +34,9 @@ python3 display_eval.py
 Auto-detects all connected monitors and scores each one independently against
 Apple Retina Display reference targets.
 
-**Multi-monitor support:** when more than one monitor is connected the Display
-tab shows an independent scorecard sub-tab for each display (primary display
-first), each with its own diagonal input, viewing-distance selector, and
-overall grade.
+**Multi-monitor support:** when more than one monitor is connected a dropdown
+selector appears in the Display tab allowing you to switch between displays.
+Each display's detected specs and scorecard update independently.
 
 **Detected per display (self-reported from OS / EDID):**
 
