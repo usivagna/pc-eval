@@ -674,93 +674,124 @@ def _get_windows_info() -> Dict[str, Any]:
     return info
 
 
-# ---------------------------------------------------------------------------
-# Main public collection function
-# ---------------------------------------------------------------------------
+def _get_windows_info_all() -> List[Dict[str, Any]]:
+    """Collect display info for **every** connected monitor on Windows.
 
-def _make_base_info() -> Dict[str, Any]:
-    """Return a blank display info dict with all recognised keys set to ``None``."""
-    return {
-        "platform":            platform.system(),
-        "resolution_width":    None,
-        "resolution_height":   None,
-        "refresh_rate":        None,
-        "adaptive_sync":       None,
-        "adaptive_sync_range": None,
-        "hdr_tier":            None,
-        "hdr_active":          None,
-        "hdr_supported":       None,
-        "max_luminance_nits":  None,
-        "true_tone":           None,
-        "icc_profile_name":    None,
-        "icc_profile_path":    None,
-        "is_retina":           None,
-        # EDID fields
-        "manufacturer_id":     None,
-        "manufacturer_name":   None,
-        "product_code":        None,
-        "serial_number":       None,
-        "manufacture_week":    None,
-        "manufacture_year":    None,
-        "monitor_name":        None,
-        "panel_type":          None,
-        "min_refresh_hz":      None,
-        "max_refresh_hz":      None,
-        "color_rx": None, "color_ry": None,
-        "color_gx": None, "color_gy": None,
-        "color_bx": None, "color_by": None,
-        "color_wx": None, "color_wy": None,
-        "gamut_srgb_pct":      None,
-        "gamut_p3_pct":        None,
-        "gamut_adobergb_pct":  None,
-        "diagonal_inches":     None,
-    }
-
-
-def get_display_info() -> Dict[str, Any]:
-    """Collect display information for the primary display.
-
-    Queries the OS and, where possible, reads raw EDID data.  All values are
-    self-reported by the manufacturer or OS and have **not** been verified with
-    measurement hardware.
-
-    Returns:
-        A dict with the following keys (absent or ``None`` when unavailable):
-
-        ``platform``, ``resolution_width``, ``resolution_height``,
-        ``refresh_rate``, ``adaptive_sync``, ``adaptive_sync_range``,
-        ``hdr_tier``, ``hdr_active``, ``true_tone``, ``icc_profile_name``,
-        ``icc_profile_path``, ``is_retina``,
-
-        and all keys returned by :func:`parse_edid`:
-        ``manufacturer_id``, ``manufacturer_name``, ``product_code``,
-        ``serial_number``, ``manufacture_week``, ``manufacture_year``,
-        ``monitor_name``, ``panel_type``, ``min_refresh_hz``,
-        ``max_refresh_hz``, ``color_rx``, ``color_ry``, ``color_gx``,
-        ``color_gy``, ``color_bx``, ``color_by``, ``color_wx``, ``color_wy``,
-        ``gamut_srgb_pct``, ``gamut_p3_pct``, ``gamut_adobergb_pct``.
+    Returns a list of dicts, one per monitor, each with the same keys as
+    :func:`_get_windows_info`.  The first entry corresponds to the primary
+    display.
     """
-    base = _make_base_info()
+    displays: List[Dict[str, Any]] = []
 
-    system = platform.system()
-    if system == "Darwin":
-        platform_info = _get_macos_info()
-    elif system == "Linux":
-        platform_info = _get_linux_info()
-    elif system == "Windows":
-        platform_info = _get_windows_info()
-    else:
-        platform_info = {}
+    # ── Per-monitor resolution via Win32_VideoController ─────────────────
+    ps_vc = _run([
+        "powershell", "-NoProfile", "-Command",
+        "Get-WmiObject Win32_VideoController | "
+        "Select-Object CurrentHorizontalResolution,CurrentVerticalResolution,"
+        "CurrentRefreshRate | ConvertTo-Json",
+    ])
+    vc_list: List[Dict[str, Any]] = []
+    if ps_vc:
+        try:
+            parsed = json.loads(ps_vc)
+            vc_list = parsed if isinstance(parsed, list) else [parsed]
+        except (json.JSONDecodeError, TypeError):
+            pass
 
-    base.update({k: v for k, v in platform_info.items() if v is not None})
-    return base
+    # ── EDID blobs for all monitors ──────────────────────────────────────
+    ps_edid_all = _run([
+        "powershell", "-NoProfile", "-Command",
+        "$mons = Get-PnpDevice -Class Monitor -Status OK -ErrorAction SilentlyContinue; "
+        "$results = @(); "
+        "foreach ($mon in $mons) { "
+        "  $path = 'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\' + $mon.InstanceId + '\\Device Parameters'; "
+        "  $item = Get-ItemProperty $path -Name EDID -ErrorAction SilentlyContinue; "
+        "  if ($item) { $results += [BitConverter]::ToString($item.EDID).Replace('-','') } "
+        "  else { $results += '' } "
+        "} "
+        "$results | ConvertTo-Json",
+    ])
+    edid_hexes: List[str] = []
+    if ps_edid_all:
+        try:
+            parsed = json.loads(ps_edid_all)
+            edid_hexes = parsed if isinstance(parsed, list) else [parsed]
+        except (json.JSONDecodeError, TypeError):
+            edid_hexes = [ps_edid_all.strip()] if ps_edid_all.strip() else []
+
+    # ── ICC profiles (shared across monitors – return first found) ────────
+    icc_name: Optional[str] = None
+    icc_path: Optional[str] = None
+    ps_icc = _run([
+        "powershell", "-NoProfile", "-Command",
+        "Get-ChildItem "
+        "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\"
+        "{4d36e96e-e325-11ce-bfc1-08002be10318}\\*' "
+        "-ErrorAction SilentlyContinue | ForEach-Object { "
+        "$p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue; "
+        "if ($p.ICMProfile) { $p.ICMProfile -join ', ' } "
+        "} | Select-Object -First 1",
+    ])
+    if ps_icc and ps_icc.strip():
+        icc_name = ps_icc.strip()
+        icc_path = os.path.join(
+            os.environ.get("SystemRoot", r"C:\Windows"),
+            "system32", "spool", "drivers", "color",
+            icc_name.split(",")[0].strip(),
+        )
+
+    # ── Merge EDID + WMI into per-display dicts ─────────────────────────
+    count = max(len(edid_hexes), len(vc_list), 1)
+    for idx in range(count):
+        info: Dict[str, Any] = {}
+
+        # WMI resolution / refresh
+        if idx < len(vc_list):
+            vc = vc_list[idx]
+            info["resolution_width"]  = vc.get("CurrentHorizontalResolution")
+            info["resolution_height"] = vc.get("CurrentVerticalResolution")
+            rr = vc.get("CurrentRefreshRate")
+            if rr:
+                info["refresh_rate"] = float(rr)
+
+        # EDID
+        if idx < len(edid_hexes) and edid_hexes[idx]:
+            try:
+                edid_bytes = bytes.fromhex(edid_hexes[idx].strip())
+                edid_info  = parse_edid(edid_bytes)
+                info.update({k: v for k, v in edid_info.items() if v is not None})
+            except ValueError:
+                pass
+
+        # Prefer EDID max refresh over WMI
+        edid_max_rr = info.get("max_refresh_hz")
+        if edid_max_rr and info.get("refresh_rate", 0) < edid_max_rr:
+            info["refresh_rate"] = float(edid_max_rr)
+
+        # HDR
+        hdr_sup = info.get("hdr_supported")
+        if hdr_sup:
+            lum = info.get("max_luminance_nits")
+            info["hdr_tier"] = hdr_sup + (f" (~{lum} cd/m²)" if lum else "")
+
+        # Adaptive sync
+        rr_min = info.get("min_refresh_hz")
+        rr_max = info.get("max_refresh_hz")
+        if rr_min and rr_max and rr_max > rr_min:
+            info["adaptive_sync"] = True
+            info["adaptive_sync_range"] = f"{rr_min}–{rr_max} Hz"
+
+        # ICC
+        if icc_name:
+            info["icc_profile_name"] = icc_name
+            info["icc_profile_path"] = icc_path
+
+        displays.append(info)
+
+    return displays
 
 
-# ---------------------------------------------------------------------------
-# Multi-display collectors
-# ---------------------------------------------------------------------------
-
-def _get_macos_all_displays() -> List[Dict[str, Any]]:
+def _get_macos_info_all() -> List[Dict[str, Any]]:
     """Collect display info for *all* connected displays on macOS.
 
     Uses ``system_profiler SPDisplaysDataType`` to enumerate displays and
@@ -846,10 +877,10 @@ def _get_macos_all_displays() -> List[Dict[str, Any]]:
             else:
                 info["adaptive_sync"] = False
 
-    return displays if displays else [_get_macos_info()]
+    return displays
 
 
-def _get_linux_all_displays() -> List[Dict[str, Any]]:
+def _get_linux_info_all() -> List[Dict[str, Any]]:
     """Collect display info for *all* connected displays on Linux.
 
     Uses ``xrandr`` for resolution/refresh data and ``/sys/class/drm/*/edid``
@@ -932,142 +963,129 @@ def _get_linux_all_displays() -> List[Dict[str, Any]]:
     if os.path.exists(drm_hdr_path) and all_infos:
         all_infos[0]["hdr_tier"] = "HDR (OS-signalled)"
 
-    return all_infos if all_infos else [_get_linux_info()]
+    return all_infos
 
 
-def _get_windows_all_displays() -> List[Dict[str, Any]]:
-    """Collect display info for *all* connected displays on Windows.
-
-    Uses ``Win32_VideoController`` for resolution/refresh and the EDID registry
-    key for raw EDID data; EDIDs are correlated to controllers by enumeration
-    order.
-    """
-    all_infos: List[Dict[str, Any]] = []
-
-    ps_res = _run([
-        "powershell", "-NoProfile", "-Command",
-        "Get-WmiObject Win32_VideoController | "
-        "Select-Object CurrentHorizontalResolution,CurrentVerticalResolution,"
-        "CurrentRefreshRate,VideoModeDescription | ConvertTo-Json",
-    ])
-    if ps_res:
-        try:
-            vc_list = json.loads(ps_res)
-            if isinstance(vc_list, dict):
-                vc_list = [vc_list]
-            for vc in vc_list:
-                if not isinstance(vc, dict):
-                    continue
-                info: Dict[str, Any] = {}
-                info["resolution_width"]  = vc.get("CurrentHorizontalResolution")
-                info["resolution_height"] = vc.get("CurrentVerticalResolution")
-                rr = vc.get("CurrentRefreshRate")
-                if rr:
-                    info["refresh_rate"] = float(rr)
-                all_infos.append(info)
-        except (json.JSONDecodeError, KeyError, TypeError):
-            pass
-
-    # Retrieve all EDIDs via Get-PnpDevice and correlate by index
-    ps_edid = _run([
-        "powershell", "-NoProfile", "-Command",
-        "$mons = Get-PnpDevice -Class Monitor -Status OK -ErrorAction SilentlyContinue; "
-        "foreach ($mon in $mons) { "
-        "$path = 'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\' + $mon.InstanceId + '\\Device Parameters'; "
-        "$item = Get-ItemProperty $path -Name EDID -ErrorAction SilentlyContinue; "
-        "if ($item) { [BitConverter]::ToString($item.EDID).Replace('-','') } "
-        "Write-Output '---' }",
-    ])
-    edid_hexes: List[str] = []
-    if ps_edid:
-        for chunk in ps_edid.strip().split("---"):
-            chunk = chunk.strip()
-            if chunk:
-                edid_hexes.append(chunk)
-
-    for i, info in enumerate(all_infos):
-        if i < len(edid_hexes):
-            try:
-                edid_bytes = bytes.fromhex(edid_hexes[i])
-                edid_info  = parse_edid(edid_bytes)
-                info.update({k: v for k, v in edid_info.items() if v is not None})
-            except ValueError:
-                pass
-
-    for info in all_infos:
-        # Prefer EDID max refresh over WMI
-        edid_max_rr = info.get("max_refresh_hz")
-        if edid_max_rr and info.get("refresh_rate", 0) < edid_max_rr:
-            info["refresh_rate"] = float(edid_max_rr)
-
-        hdr_sup = info.get("hdr_supported")
-        if hdr_sup:
-            lum = info.get("max_luminance_nits")
-            info["hdr_tier"] = hdr_sup + (f" (~{lum} cd/m²)" if lum else "")
-
-        rr_min = info.get("min_refresh_hz")
-        rr_max = info.get("max_refresh_hz")
-        if rr_min and rr_max and rr_max > rr_min:
-            info["adaptive_sync"]       = True
-            info["adaptive_sync_range"] = f"{rr_min}–{rr_max} Hz"
-
-    # ICC profile (first entry only — per-display ICC on Windows requires WCS)
-    ps_icc = _run([
-        "powershell", "-NoProfile", "-Command",
-        "Get-ChildItem "
-        "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\"
-        "{4d36e96e-e325-11ce-bfc1-08002be10318}\\*' "
-        "-ErrorAction SilentlyContinue | ForEach-Object { "
-        "$p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue; "
-        "if ($p.ICMProfile) { $p.ICMProfile -join ', ' } "
-        "} | Select-Object -First 1",
-    ])
-    if ps_icc and ps_icc.strip() and all_infos:
-        names = ps_icc.strip()
-        all_infos[0]["icc_profile_name"] = names
-        all_infos[0]["icc_profile_path"] = os.path.join(
-            os.environ.get("SystemRoot", r"C:\Windows"),
-            "system32", "spool", "drivers", "color",
-            names.split(",")[0].strip(),
-        )
-
-    return all_infos if all_infos else [_get_windows_info()]
+# ---------------------------------------------------------------------------
+# Main public collection function
+# ---------------------------------------------------------------------------
 
 
 def get_all_displays_info() -> List[Dict[str, Any]]:
-    """Collect display information for *all* connected displays.
+    """Collect display information for **all** connected displays.
 
-    Queries the OS for each connected monitor and returns one dict per
-    display.  The primary/built-in display is always first in the list.
-    All values are self-reported and have **not** been verified with
+    Returns:
+        A list of dicts (one per display).  Each dict has the same keys as
+        :func:`get_display_info`.  The first entry is the primary display.
+    """
+    system = platform.system()
+
+    if system == "Windows":
+        per_display = _get_windows_info_all()
+    elif system == "Darwin":
+        per_display = _get_macos_info_all()
+    elif system == "Linux":
+        per_display = _get_linux_info_all()
+    else:
+        per_display = []
+
+    if not per_display:
+        # Fallback: wrap single-display result in a list
+        return [get_display_info()]
+
+    # Ensure every dict has the full set of base keys
+    base_keys = {
+        "platform", "resolution_width", "resolution_height", "refresh_rate",
+        "adaptive_sync", "adaptive_sync_range", "hdr_tier", "hdr_active",
+        "hdr_supported", "max_luminance_nits", "true_tone",
+        "icc_profile_name", "icc_profile_path", "is_retina",
+        "manufacturer_id", "manufacturer_name", "product_code",
+        "serial_number", "manufacture_week", "manufacture_year",
+        "monitor_name", "panel_type", "min_refresh_hz", "max_refresh_hz",
+        "color_rx", "color_ry", "color_gx", "color_gy",
+        "color_bx", "color_by", "color_wx", "color_wy",
+        "gamut_srgb_pct", "gamut_p3_pct", "gamut_adobergb_pct",
+        "diagonal_inches",
+    }
+    for d in per_display:
+        d.setdefault("platform", system)
+        for k in base_keys:
+            d.setdefault(k, None)
+
+    return per_display
+
+
+def get_display_info() -> Dict[str, Any]:
+    """Collect display information for the primary display.
+
+    Queries the OS and, where possible, reads raw EDID data.  All values are
+    self-reported by the manufacturer or OS and have **not** been verified with
     measurement hardware.
 
     Returns:
-        A non-empty list of dicts.  Each dict has the same keys as returned
-        by :func:`get_display_info`.  Falls back to
-        ``[get_display_info()]`` when multi-display enumeration fails or is
-        unsupported on the current platform.
+        A dict with the following keys (absent or ``None`` when unavailable):
+
+        ``platform``, ``resolution_width``, ``resolution_height``,
+        ``refresh_rate``, ``adaptive_sync``, ``adaptive_sync_range``,
+        ``hdr_tier``, ``hdr_active``, ``true_tone``, ``icc_profile_name``,
+        ``icc_profile_path``, ``is_retina``,
+
+        and all keys returned by :func:`parse_edid`:
+        ``manufacturer_id``, ``manufacturer_name``, ``product_code``,
+        ``serial_number``, ``manufacture_week``, ``manufacture_year``,
+        ``monitor_name``, ``panel_type``, ``min_refresh_hz``,
+        ``max_refresh_hz``, ``color_rx``, ``color_ry``, ``color_gx``,
+        ``color_gy``, ``color_bx``, ``color_by``, ``color_wx``, ``color_wy``,
+        ``gamut_srgb_pct``, ``gamut_p3_pct``, ``gamut_adobergb_pct``.
     """
+    base: Dict[str, Any] = {
+        "platform":           platform.system(),
+        "resolution_width":   None,
+        "resolution_height":  None,
+        "refresh_rate":       None,
+        "adaptive_sync":      None,
+        "adaptive_sync_range": None,
+        "hdr_tier":           None,
+        "hdr_active":         None,
+        "hdr_supported":      None,
+        "max_luminance_nits": None,
+        "true_tone":          None,
+        "icc_profile_name":   None,
+        "icc_profile_path":   None,
+        "is_retina":          None,
+        # EDID fields
+        "manufacturer_id":    None,
+        "manufacturer_name":  None,
+        "product_code":       None,
+        "serial_number":      None,
+        "manufacture_week":   None,
+        "manufacture_year":   None,
+        "monitor_name":       None,
+        "panel_type":         None,
+        "min_refresh_hz":     None,
+        "max_refresh_hz":     None,
+        "color_rx": None, "color_ry": None,
+        "color_gx": None, "color_gy": None,
+        "color_bx": None, "color_by": None,
+        "color_wx": None, "color_wy": None,
+        "gamut_srgb_pct":     None,
+        "gamut_p3_pct":       None,
+        "gamut_adobergb_pct": None,
+        "diagonal_inches":    None,
+    }
+
     system = platform.system()
-    try:
-        if system == "Darwin":
-            platform_displays = _get_macos_all_displays()
-        elif system == "Linux":
-            platform_displays = _get_linux_all_displays()
-        elif system == "Windows":
-            platform_displays = _get_windows_all_displays()
-        else:
-            platform_displays = [{}]
-    except Exception:  # pragma: no cover – defensive catch for unexpected OS errors
-        platform_displays = [{}]
+    if system == "Darwin":
+        platform_info = _get_macos_info()
+    elif system == "Linux":
+        platform_info = _get_linux_info()
+    elif system == "Windows":
+        platform_info = _get_windows_info()
+    else:
+        platform_info = {}
 
-    result: List[Dict[str, Any]] = []
-    for platform_info in platform_displays:
-        base = _make_base_info()
-        base.update({k: v for k, v in platform_info.items() if v is not None})
-        result.append(base)
-
-    return result if result else [get_display_info()]
+    base.update({k: v for k, v in platform_info.items() if v is not None})
+    return base
 
 
 # ---------------------------------------------------------------------------

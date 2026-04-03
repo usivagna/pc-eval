@@ -3,10 +3,8 @@ PC Evaluator
 ============
 A tabbed desktop GUI that scores your system against Apple standards:
 
-  Tab 1 – Display    : auto-detects all connected display specs and scores each
-                       independently against Apple Retina Display reference targets.
-                       When multiple monitors are connected a sub-tab is shown
-                       for each display.
+  Tab 1 – Display    : auto-detects display specs and scores against Apple
+                       Retina Display reference targets.
   Tab 2 – Processor  : auto-detects CPU / SoC and scores it across seven
                        dimensions vs the Apple M3 Pro baseline.
 
@@ -90,255 +88,6 @@ def _result_color(result: str) -> str:
 
 
 # ===========================================================================
-# Per-display scorecard panel
-# ===========================================================================
-
-class _DisplayCard(ttk.Frame):
-    """Self-contained scorecard panel for a single display.
-
-    Embeds the "Detected Display Info", "Your Setup", and "Scorecard" sections
-    for one monitor.  Multiple instances can coexist inside a sub-notebook
-    within the Display tab for multi-monitor setups.
-    """
-
-    _PADY = 5
-
-    def __init__(self, parent: tk.Widget, info: Dict[str, Any]) -> None:
-        super().__init__(parent, padding=10)
-        self._info = info
-        # Fall back to tkinter's own screen detection when the OS/EDID
-        # collection did not return a resolution.
-        self._screen_w = (
-            info.get("resolution_width") or self.winfo_screenwidth()
-        )
-        self._screen_h = (
-            info.get("resolution_height") or self.winfo_screenheight()
-        )
-        self._build_ui()
-        self._update_scores()
-
-    def _build_ui(self) -> None:
-        val_font    = font.Font(family="Helvetica", size=11, weight="bold")
-        header_font = font.Font(family="Helvetica", size=9, weight="bold")
-        inf = self._info
-
-        # ── Detected values ───────────────────────────────────────────
-        info_frame = ttk.LabelFrame(self, text="  Detected Display Info  ", padding=10)
-        info_frame.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 10))
-
-        detected_rows = [
-            ("Monitor",
-             inf.get("monitor_name") or inf.get("manufacturer_name")
-             or inf.get("manufacturer_id") or "Unknown"),
-            ("Resolution",
-             f"{self._screen_w} x {self._screen_h} px"
-             if self._screen_w and self._screen_h else "Unknown"),
-            ("Refresh Rate",
-             f"{inf['refresh_rate']:.0f} Hz" if inf.get("refresh_rate") else "Unknown"),
-            ("Adaptive Sync",
-             inf.get("adaptive_sync_range") if inf.get("adaptive_sync")
-             else "Not detected"),
-            ("DCI-P3 Gamut",
-             f"{inf['gamut_p3_pct']:.1f}%"
-             if inf.get("gamut_p3_pct") is not None else "Unknown"),
-            ("sRGB Gamut",
-             f"{inf['gamut_srgb_pct']:.1f}%"
-             if inf.get("gamut_srgb_pct") is not None else "Unknown"),
-            ("HDR", str(inf.get("hdr_tier") or "Not detected")),
-            ("Panel Type", str(inf.get("panel_type") or "Unknown")),
-            ("Color Profile", str(inf.get("icc_profile_name") or "Not detected")),
-        ]
-
-        for r, (label, value) in enumerate(detected_rows):
-            ttk.Label(info_frame, text=label + ":").grid(
-                row=r, column=0, sticky="w", padx=(4, 10), pady=2,
-            )
-            tk.Label(info_frame, text=value, font=val_font, fg="#1a1a1a").grid(
-                row=r, column=1, sticky="w", padx=4, pady=2,
-            )
-
-        # ── Setup inputs ───────────────────────────────────────────────
-        input_frame = ttk.LabelFrame(self, text="  Your Setup  ", padding=10)
-        input_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 10))
-
-        ttk.Label(input_frame, text="Screen diagonal (inches):").grid(
-            row=0, column=0, sticky="w", padx=(4, 8), pady=self._PADY,
-        )
-        detected_diag = inf.get("diagonal_inches")
-        self._diagonal_var = tk.StringVar(
-            value=str(detected_diag) if detected_diag else ""
-        )
-        diag_entry = ttk.Entry(input_frame, textvariable=self._diagonal_var, width=10)
-        diag_entry.grid(row=0, column=1, sticky="w", pady=self._PADY)
-        diag_entry.bind("<KeyRelease>", lambda _e: self._update_scores())
-
-        ttk.Label(input_frame, text="Viewing distance:").grid(
-            row=1, column=0, sticky="w", padx=(4, 8), pady=self._PADY,
-        )
-        distance_labels = [lbl for lbl, _ in VIEWING_DISTANCES]
-        self._distance_combo = ttk.Combobox(
-            input_frame, values=distance_labels, state="readonly", width=30,
-        )
-        default_idx = next(
-            (i for i, (_, d) in enumerate(VIEWING_DISTANCES) if d == 18), 3
-        )
-        self._distance_combo.current(default_idx)
-        self._distance_combo.grid(row=1, column=1, sticky="w", pady=self._PADY)
-        self._distance_combo.bind("<<ComboboxSelected>>", lambda _e: self._update_scores())
-
-        # ── Scorecard table ────────────────────────────────────────────
-        score_frame = ttk.LabelFrame(
-            self, text="  Scorecard vs Apple Retina Targets  ", padding=10
-        )
-        score_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 10))
-
-        for ci, hdr in enumerate(("Metric", "Your Value", "Apple Target", "Result")):
-            ttk.Label(score_frame, text=hdr, font=header_font).grid(
-                row=0, column=ci, sticky="w", padx=8, pady=(0, 4),
-            )
-        ttk.Separator(score_frame, orient="horizontal").grid(
-            row=1, column=0, columnspan=4, sticky="ew", pady=2,
-        )
-
-        self._score_widgets: List[Dict[str, tk.Label]] = []
-        for i, name in enumerate(
-            ("Pixel Density (PPI)", "DCI-P3 Gamut", "Refresh Rate", "HDR Support")
-        ):
-            r = i + 2
-            lbl_metric = tk.Label(score_frame, text=name, anchor="w")
-            lbl_value  = tk.Label(score_frame, text="—", anchor="w")
-            lbl_target = tk.Label(score_frame, text="—", anchor="w", fg=_GRAY)
-            lbl_result = tk.Label(
-                score_frame, text="—", anchor="w",
-                font=font.Font(family="Helvetica", size=10, weight="bold"),
-            )
-            lbl_metric.grid(row=r, column=0, sticky="w", padx=8, pady=3)
-            lbl_value.grid( row=r, column=1, sticky="w", padx=8, pady=3)
-            lbl_target.grid(row=r, column=2, sticky="w", padx=8, pady=3)
-            lbl_result.grid(row=r, column=3, sticky="w", padx=8, pady=3)
-            self._score_widgets.append({
-                "metric": lbl_metric,
-                "value":  lbl_value,
-                "target": lbl_target,
-                "result": lbl_result,
-            })
-
-        # ── Overall grade ──────────────────────────────────────────────
-        ttk.Separator(self, orient="horizontal").grid(
-            row=3, column=0, columnspan=3, sticky="ew", pady=8,
-        )
-        self._overall_font = font.Font(family="Helvetica", size=28, weight="bold")
-        self._overall_label = tk.Label(
-            self, text="—", font=self._overall_font, fg=_GRAY,
-        )
-        self._overall_label.grid(row=4, column=0, columnspan=3, pady=(0, 2))
-        self._overall_desc = tk.Label(
-            self, text="Enter screen diagonal to get your score",
-            fg=_GRAY, font=font.Font(family="Helvetica", size=11),
-        )
-        self._overall_desc.grid(row=5, column=0, columnspan=3, pady=(0, 8))
-
-    def _selected_distance(self) -> float:
-        idx = self._distance_combo.current()
-        return VIEWING_DISTANCES[idx][1]
-
-    def _update_scores(self) -> None:
-        inf = self._info
-        distance = self._selected_distance()
-        min_ppi = _retina_min_ppi(distance)
-        scores: List[float] = []
-
-        # --- PPI ---
-        ppi_w = self._score_widgets[0]
-        ppi_w["target"].configure(text=f">= {min_ppi:.0f} PPI @ {distance:.0f} in")
-
-        ppi: Optional[float] = None
-        raw_diag = self._diagonal_var.get().strip()
-        if raw_diag:
-            try:
-                diagonal = float(raw_diag)
-                if diagonal > 0 and self._screen_w and self._screen_h:
-                    ppi = _calculate_ppi(self._screen_w, self._screen_h, diagonal)
-            except ValueError:
-                pass
-
-        if ppi is not None:
-            scores.append(min(ppi / min_ppi * 100, 100))
-            is_pass = ppi >= min_ppi
-            ppi_w["value"].configure(text=f"{ppi:.1f} PPI")
-            ppi_w["result"].configure(
-                text="PASS" if is_pass else "FAIL",
-                fg=_GREEN if is_pass else _RED,
-            )
-        else:
-            ppi_w["value"].configure(text="—")
-            ppi_w["result"].configure(text="—", fg=_GRAY)
-
-        # --- DCI-P3 Gamut ---
-        p3_w = self._score_widgets[1]
-        p3_target = 95.0
-        p3_w["target"].configure(text=f">= {p3_target:.0f}%")
-        p3 = inf.get("gamut_p3_pct")
-        if p3 is not None:
-            scores.append(min(p3 / p3_target * 100, 100))
-            result = "PASS" if p3 >= p3_target else ("REVIEW" if p3 >= 80 else "FAIL")
-            p3_w["value"].configure(text=f"{p3:.1f}%")
-            p3_w["result"].configure(text=result, fg=_result_color(result))
-        else:
-            p3_w["value"].configure(text="Unknown")
-            p3_w["result"].configure(text="—", fg=_GRAY)
-
-        # --- Refresh Rate ---
-        rr_w = self._score_widgets[2]
-        tgt_hz = 120
-        rr_w["target"].configure(text=f">= {tgt_hz} Hz")
-        rr = inf.get("refresh_rate") or inf.get("max_refresh_hz")
-        if rr is not None:
-            scores.append(min(rr / tgt_hz * 100, 100))
-            result = "PASS" if rr >= tgt_hz else ("REVIEW" if rr >= 60 else "FAIL")
-            rr_w["value"].configure(text=f"{rr:.0f} Hz")
-            rr_w["result"].configure(text=result, fg=_result_color(result))
-        else:
-            rr_w["value"].configure(text="Unknown")
-            rr_w["result"].configure(text="—", fg=_GRAY)
-
-        # --- HDR ---
-        hdr_w = self._score_widgets[3]
-        hdr_w["target"].configure(text="HDR supported")
-        hdr = inf.get("hdr_tier")
-        if hdr:
-            scores.append(100)
-            hdr_w["value"].configure(text=str(hdr))
-            hdr_w["result"].configure(text="PASS", fg=_GREEN)
-        else:
-            scores.append(0)
-            hdr_w["value"].configure(text="Not detected")
-            hdr_w["result"].configure(text="FAIL", fg=_RED)
-
-        # --- Overall grade ---
-        if scores:
-            overall = sum(scores) / len(scores)
-            grade = _score_label(overall)
-            self._overall_label.configure(
-                text=f"{grade}  ({overall:.0f}%)", fg=_score_color(overall),
-            )
-            if overall >= 90:
-                desc = "Excellent — meets or exceeds Apple Retina standards"
-            elif overall >= 75:
-                desc = "Good — close to Apple Retina quality"
-            elif overall >= 50:
-                desc = "Fair — some areas fall short of Retina standards"
-            else:
-                desc = "Below Apple Retina standards"
-            self._overall_desc.configure(text=desc, fg=_score_color(overall))
-        else:
-            self._overall_label.configure(text="—", fg=_GRAY)
-            self._overall_desc.configure(
-                text="Enter screen diagonal to get your score", fg=_GRAY,
-            )
-
-
-# ===========================================================================
 # Main application
 # ===========================================================================
 
@@ -355,13 +104,23 @@ class PCEvalApp(tk.Tk):
 
         # Fetch system info up-front so both tabs share the same snapshot
         self._all_displays: List[Dict[str, Any]] = di.get_all_displays_info()
+        self._display_info: Dict[str, Any] = self._all_displays[0]
         self._proc_info: Dict[str, Any] = pi.get_processor_info()
+
+        self._screen_w = (
+            self._display_info.get("resolution_width") or self.winfo_screenwidth()
+        )
+        self._screen_h = (
+            self._display_info.get("resolution_height") or self.winfo_screenheight()
+        )
 
         self._notebook = ttk.Notebook(self)
         self._notebook.pack(fill="both", expand=True)
 
         self._build_display_tab()
         self._build_processor_tab()
+
+        self._update_display_scores()
 
     # ======================================================================
     # Tab 1 – Display
@@ -381,22 +140,291 @@ class PCEvalApp(tk.Tk):
             foreground=_GRAY,
         ).grid(row=1, column=0, columnspan=3, pady=(0, 12))
 
+        # ── Detected display values ────────────────────────────────────
+        info_frame = ttk.LabelFrame(tab, text="  Detected Display Info  ", padding=10)
+        info_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 10))
+
+        val_font = font.Font(family="Helvetica", size=11, weight="bold")
+        self._info_val_font = val_font
+
+        # ── Monitor selector (visible only when >1 display) ────────────
+        self._monitor_names: List[str] = []
+        for i, d in enumerate(self._all_displays):
+            name = (d.get("monitor_name")
+                    or d.get("manufacturer_name")
+                    or d.get("manufacturer_id")
+                    or f"Display {i + 1}")
+            self._monitor_names.append(name)
+
+        monitor_row = 0
+        ttk.Label(info_frame, text="Monitor:").grid(
+            row=monitor_row, column=0, sticky="w", padx=(4, 10), pady=2,
+        )
+
         if len(self._all_displays) > 1:
-            # Multiple monitors: one sub-tab per display
-            sub_nb = ttk.Notebook(tab)
-            sub_nb.grid(row=2, column=0, columnspan=3, sticky="nsew")
-            for idx, disp_info in enumerate(self._all_displays):
-                tab_name = (
-                    disp_info.get("monitor_name")
-                    or disp_info.get("manufacturer_name")
-                    or f"Display {idx + 1}"
-                )
-                card = _DisplayCard(sub_nb, disp_info)
-                sub_nb.add(card, text=f"  {tab_name}  ")
+            self._monitor_combo = ttk.Combobox(
+                info_frame,
+                values=self._monitor_names,
+                state="readonly",
+                width=30,
+                font=val_font,
+            )
+            self._monitor_combo.current(0)
+            self._monitor_combo.grid(
+                row=monitor_row, column=1, sticky="w", padx=4, pady=2,
+            )
+            self._monitor_combo.bind(
+                "<<ComboboxSelected>>", lambda _e: self._on_monitor_changed(),
+            )
         else:
-            # Single monitor: embed the card directly
-            card = _DisplayCard(tab, self._all_displays[0])
-            card.grid(row=2, column=0, columnspan=3)
+            self._monitor_combo = None
+            tk.Label(
+                info_frame, text=self._monitor_names[0],
+                font=val_font, fg="#1a1a1a",
+            ).grid(row=monitor_row, column=1, sticky="w", padx=4, pady=2)
+
+        # ── Remaining detected-info rows (populated dynamically) ───────
+        self._detected_labels: List[Dict[str, tk.Label]] = []
+        detail_fields = [
+            "Resolution", "Refresh Rate", "Adaptive Sync",
+            "DCI-P3 Gamut", "sRGB Gamut", "HDR", "Panel Type", "Color Profile",
+        ]
+        for r_offset, label_text in enumerate(detail_fields, start=1):
+            lbl = ttk.Label(info_frame, text=label_text + ":")
+            lbl.grid(row=r_offset, column=0, sticky="w", padx=(4, 10), pady=2)
+            val_lbl = tk.Label(info_frame, text="—", font=val_font, fg="#1a1a1a")
+            val_lbl.grid(row=r_offset, column=1, sticky="w", padx=4, pady=2)
+            self._detected_labels.append({"key": label_text, "widget": val_lbl})
+
+        self._info_frame = info_frame
+        self._refresh_detected_info()
+
+        # ── Setup inputs ───────────────────────────────────────────────
+        input_frame = ttk.LabelFrame(tab, text="  Your Setup  ", padding=10)
+        input_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(0, 10))
+
+        ttk.Label(input_frame, text="Screen diagonal (inches):").grid(
+            row=0, column=0, sticky="w", padx=(4, 8), pady=self._PADY,
+        )
+        detected_diag = self._display_info.get("diagonal_inches")
+        self._diagonal_var = tk.StringVar(
+            value=str(detected_diag) if detected_diag else ""
+        )
+        diag_entry = ttk.Entry(input_frame, textvariable=self._diagonal_var, width=10)
+        diag_entry.grid(row=0, column=1, sticky="w", pady=self._PADY)
+        diag_entry.bind("<KeyRelease>", lambda _e: self._update_display_scores())
+
+        ttk.Label(input_frame, text="Viewing distance:").grid(
+            row=1, column=0, sticky="w", padx=(4, 8), pady=self._PADY,
+        )
+        distance_labels = [lbl for lbl, _ in VIEWING_DISTANCES]
+        self._distance_combo = ttk.Combobox(
+            input_frame, values=distance_labels, state="readonly", width=30,
+        )
+        default_idx = next(
+            (i for i, (_, d) in enumerate(VIEWING_DISTANCES) if d == 18), 3
+        )
+        self._distance_combo.current(default_idx)
+        self._distance_combo.grid(row=1, column=1, sticky="w", pady=self._PADY)
+        self._distance_combo.bind(
+            "<<ComboboxSelected>>", lambda _e: self._update_display_scores()
+        )
+
+        # ── Scorecard table ────────────────────────────────────────────
+        score_frame = ttk.LabelFrame(
+            tab, text="  Scorecard vs Apple Retina Targets  ", padding=10
+        )
+        score_frame.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(0, 10))
+
+        header_font = font.Font(family="Helvetica", size=9, weight="bold")
+        for ci, hdr in enumerate(("Metric", "Your Value", "Apple Target", "Result")):
+            ttk.Label(score_frame, text=hdr, font=header_font).grid(
+                row=0, column=ci, sticky="w", padx=8, pady=(0, 4),
+            )
+        ttk.Separator(score_frame, orient="horizontal").grid(
+            row=1, column=0, columnspan=4, sticky="ew", pady=2,
+        )
+
+        self._display_score_widgets: List[Dict[str, tk.Label]] = []
+        for i, name in enumerate(
+            ("Pixel Density (PPI)", "DCI-P3 Gamut", "Refresh Rate", "HDR Support")
+        ):
+            r = i + 2
+            lbl_metric = tk.Label(score_frame, text=name, anchor="w")
+            lbl_value  = tk.Label(score_frame, text="—", anchor="w")
+            lbl_target = tk.Label(score_frame, text="—", anchor="w", fg=_GRAY)
+            lbl_result = tk.Label(
+                score_frame, text="—", anchor="w",
+                font=font.Font(family="Helvetica", size=10, weight="bold"),
+            )
+            lbl_metric.grid(row=r, column=0, sticky="w", padx=8, pady=3)
+            lbl_value.grid( row=r, column=1, sticky="w", padx=8, pady=3)
+            lbl_target.grid(row=r, column=2, sticky="w", padx=8, pady=3)
+            lbl_result.grid(row=r, column=3, sticky="w", padx=8, pady=3)
+            self._display_score_widgets.append({
+                "metric": lbl_metric,
+                "value":  lbl_value,
+                "target": lbl_target,
+                "result": lbl_result,
+            })
+
+        # ── Overall grade ──────────────────────────────────────────────
+        ttk.Separator(tab, orient="horizontal").grid(
+            row=5, column=0, columnspan=3, sticky="ew", pady=8,
+        )
+        self._display_overall_font = font.Font(family="Helvetica", size=28, weight="bold")
+        self._display_overall_label = tk.Label(
+            tab, text="—", font=self._display_overall_font, fg=_GRAY,
+        )
+        self._display_overall_label.grid(row=6, column=0, columnspan=3, pady=(0, 2))
+
+        self._display_overall_desc = tk.Label(
+            tab,
+            text="Enter screen diagonal to get your score",
+            fg=_GRAY,
+            font=font.Font(family="Helvetica", size=11),
+        )
+        self._display_overall_desc.grid(row=7, column=0, columnspan=3, pady=(0, 8))
+
+    # ------------------------------------------------------------------
+    # Monitor switching helpers
+    # ------------------------------------------------------------------
+
+    def _refresh_detected_info(self) -> None:
+        """Update the detected-info labels to reflect ``self._display_info``."""
+        inf = self._display_info
+        w = inf.get("resolution_width") or self.winfo_screenwidth()
+        h = inf.get("resolution_height") or self.winfo_screenheight()
+        self._screen_w = w
+        self._screen_h = h
+
+        values = {
+            "Resolution":    f"{w} x {h} px",
+            "Refresh Rate":  (f"{inf['refresh_rate']:.0f} Hz"
+                              if inf.get("refresh_rate") else "Unknown"),
+            "Adaptive Sync": (inf.get("adaptive_sync_range")
+                              if inf.get("adaptive_sync") else "Not detected"),
+            "DCI-P3 Gamut":  (f"{inf['gamut_p3_pct']:.1f}%"
+                              if inf.get("gamut_p3_pct") is not None else "Unknown"),
+            "sRGB Gamut":    (f"{inf['gamut_srgb_pct']:.1f}%"
+                              if inf.get("gamut_srgb_pct") is not None else "Unknown"),
+            "HDR":           str(inf.get("hdr_tier") or "Not detected"),
+            "Panel Type":    str(inf.get("panel_type") or "Unknown"),
+            "Color Profile": str(inf.get("icc_profile_name") or "Not detected"),
+        }
+        for entry in self._detected_labels:
+            text = values.get(entry["key"], "—")
+            entry["widget"].configure(text=text)
+
+    def _on_monitor_changed(self) -> None:
+        """Handle monitor dropdown selection change."""
+        idx = self._monitor_combo.current()  # type: ignore[union-attr]
+        self._display_info = self._all_displays[idx]
+        self._refresh_detected_info()
+        self._update_display_scores()
+
+    # ------------------------------------------------------------------
+    # Display score computation
+    # ------------------------------------------------------------------
+
+    def _selected_distance(self) -> float:
+        idx = self._distance_combo.current()
+        return VIEWING_DISTANCES[idx][1]
+
+    def _update_display_scores(self) -> None:
+        inf = self._display_info
+        distance = self._selected_distance()
+        min_ppi = _retina_min_ppi(distance)
+        scores: List[float] = []
+
+        # --- PPI ---
+        ppi_w = self._display_score_widgets[0]
+        ppi_w["target"].configure(text=f">= {min_ppi:.0f} PPI @ {distance:.0f} in")
+
+        ppi: Optional[float] = None
+        raw_diag = self._diagonal_var.get().strip()
+        if raw_diag:
+            try:
+                diagonal = float(raw_diag)
+                if diagonal > 0:
+                    ppi = _calculate_ppi(self._screen_w, self._screen_h, diagonal)
+            except ValueError:
+                pass
+
+        if ppi is not None:
+            scores.append(min(ppi / min_ppi * 100, 100))
+            is_pass = ppi >= min_ppi
+            ppi_w["value"].configure(text=f"{ppi:.1f} PPI")
+            ppi_w["result"].configure(
+                text="PASS" if is_pass else "FAIL",
+                fg=_GREEN if is_pass else _RED,
+            )
+        else:
+            ppi_w["value"].configure(text="—")
+            ppi_w["result"].configure(text="—", fg=_GRAY)
+
+        # --- DCI-P3 Gamut ---
+        p3_w = self._display_score_widgets[1]
+        p3_target = 95.0
+        p3_w["target"].configure(text=f">= {p3_target:.0f}%")
+        p3 = inf.get("gamut_p3_pct")
+        if p3 is not None:
+            scores.append(min(p3 / p3_target * 100, 100))
+            result = "PASS" if p3 >= p3_target else ("REVIEW" if p3 >= 80 else "FAIL")
+            p3_w["value"].configure(text=f"{p3:.1f}%")
+            p3_w["result"].configure(text=result, fg=_result_color(result))
+        else:
+            p3_w["value"].configure(text="Unknown")
+            p3_w["result"].configure(text="—", fg=_GRAY)
+
+        # --- Refresh Rate ---
+        rr_w = self._display_score_widgets[2]
+        tgt_hz = 120
+        rr_w["target"].configure(text=f">= {tgt_hz} Hz")
+        rr = inf.get("refresh_rate") or inf.get("max_refresh_hz")
+        if rr is not None:
+            scores.append(min(rr / tgt_hz * 100, 100))
+            result = "PASS" if rr >= tgt_hz else ("REVIEW" if rr >= 60 else "FAIL")
+            rr_w["value"].configure(text=f"{rr:.0f} Hz")
+            rr_w["result"].configure(text=result, fg=_result_color(result))
+        else:
+            rr_w["value"].configure(text="Unknown")
+            rr_w["result"].configure(text="—", fg=_GRAY)
+
+        # --- HDR ---
+        hdr_w = self._display_score_widgets[3]
+        hdr_w["target"].configure(text="HDR supported")
+        hdr = inf.get("hdr_tier")
+        if hdr:
+            scores.append(100)
+            hdr_w["value"].configure(text=str(hdr))
+            hdr_w["result"].configure(text="PASS", fg=_GREEN)
+        else:
+            scores.append(0)
+            hdr_w["value"].configure(text="Not detected")
+            hdr_w["result"].configure(text="FAIL", fg=_RED)
+
+        # --- Overall grade ---
+        if scores:
+            overall = sum(scores) / len(scores)
+            grade = _score_label(overall)
+            self._display_overall_label.configure(
+                text=f"{grade}  ({overall:.0f}%)", fg=_score_color(overall),
+            )
+            if overall >= 90:
+                desc = "Excellent — meets or exceeds Apple Retina standards"
+            elif overall >= 75:
+                desc = "Good — close to Apple Retina quality"
+            elif overall >= 50:
+                desc = "Fair — some areas fall short of Retina standards"
+            else:
+                desc = "Below Apple Retina standards"
+            self._display_overall_desc.configure(text=desc, fg=_score_color(overall))
+        else:
+            self._display_overall_label.configure(text="—", fg=_GRAY)
+            self._display_overall_desc.configure(
+                text="Enter screen diagonal to get your score", fg=_GRAY,
+            )
 
     # ======================================================================
     # Tab 2 – Processor
@@ -620,7 +648,6 @@ class PCEvalApp(tk.Tk):
 # Backward-compatibility alias
 # ---------------------------------------------------------------------------
 
-#: Alias kept for any code that imported ``DisplayEvalApp`` by the old name.
 DisplayEvalApp = PCEvalApp
 
 
