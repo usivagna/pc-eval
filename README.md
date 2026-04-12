@@ -3,31 +3,138 @@ Tools to evaluate the hardware of a PC.
 
 ---
 
-## Project structure
+## .NET MAUI App (Primary — WinUI 3 on Windows)
+
+The application has been migrated to **.NET MAUI** (Multi-platform App UI), which
+uses **WinUI 3** as its native UI layer on Windows and runs natively on macOS,
+iOS, and Android as well.
+
+### Project structure
 
 ```
-pc-eval/
-├── display_info.py          # Core library: EDID parsing, gamut maths, OS queries
-├── display_eval.py          # PC Evaluator GUI — Display + Processor tabs (tkinter)
-├── processor_info.py        # Core library: CPU/SoC detection and scorecard
-├── retina_checker.py        # Retina Display Checker GUI (tkinter)
-├── test_display_info.py     # Unit tests for display_info.py (67 tests)
-├── test_processor_info.py   # Unit tests for processor_info.py
-└── test_retina_checker.py   # Unit tests for retina_checker.py (23 tests)
+src/
+├── PCEval.sln                        # Visual Studio solution
+├── PCEval/                           # .NET MAUI application
+│   ├── PCEval.csproj                 # Multi-target project (net9.0-windows/macos/ios/android)
+│   ├── MauiProgram.cs                # App entry point and DI setup
+│   ├── App.xaml / App.xaml.cs        # Application class
+│   ├── AppShell.xaml / .cs           # Tab-bar shell
+│   ├── Models/
+│   │   ├── DisplayInfo.cs            # Display data model
+│   │   ├── DisplayScorecardRow.cs    # Scorecard row model
+│   │   ├── PerformanceTier.cs        # CPU tier data model
+│   │   ├── ProcessorInfo.cs          # Processor data model
+│   │   └── ProcessorScorecardRow.cs  # Processor scorecard row
+│   ├── Services/
+│   │   ├── DisplayLogic.cs           # EDID parsing, gamut maths, scorecard (port of display_info.py)
+│   │   ├── DisplayService.cs         # OS-level display detection (Windows/macOS/Linux)
+│   │   ├── IDisplayService.cs        # Display service interface
+│   │   ├── ProcessorLogic.cs         # Tier database and scorecard (port of processor_info.py)
+│   │   ├── ProcessorService.cs       # OS-level CPU detection (Windows/macOS/Linux)
+│   │   └── IProcessorService.cs      # Processor service interface
+│   ├── ViewModels/
+│   │   ├── DisplayViewModel.cs       # Display tab ViewModel (MVVM)
+│   │   ├── ProcessorViewModel.cs     # Processor tab ViewModel (MVVM)
+│   │   └── RetinaCheckerViewModel.cs # Retina Checker ViewModel
+│   ├── Views/
+│   │   ├── DisplayPage.xaml / .cs    # Display evaluation tab
+│   │   ├── ProcessorPage.xaml / .cs  # Processor evaluation tab
+│   │   └── RetinaCheckerPage.xaml / .cs  # Retina Display Checker tab
+│   └── Platforms/
+│       ├── Windows/                  # WinUI 3 entry point + package manifest
+│       ├── MacCatalyst/              # macOS entry point
+│       ├── iOS/                      # iOS entry point
+│       └── Android/                  # Android entry point
+└── PCEval.Tests/                     # xUnit test project
+    ├── DisplayLogicTests.cs          # Tests for EDID parsing, gamut, scorecard
+    ├── ProcessorLogicTests.cs        # Tests for tier matching and scoring
+    └── RetinaCheckerTests.cs         # Tests for PPI and Retina calculations
 ```
 
-**Requirements:** Python 3.8+, tkinter (bundled on macOS/Windows; `python3-tk`
-on Linux).  No third-party packages are required.
+### Requirements
+
+| Requirement | Version |
+|-------------|---------|
+| .NET SDK    | 9.0 or later |
+| .NET MAUI workload | `dotnet workload install maui` |
+| Windows target | Windows 10 1903 / SDK 10.0.19041+ |
+| macOS target | Xcode 15+ (macOS 14+) |
+
+### Install the MAUI workload
+
+```bash
+dotnet workload install maui
+```
+
+### Build and run on Windows (WinUI 3)
+
+```bash
+cd src
+dotnet build PCEval/PCEval.csproj -f net9.0-windows10.0.19041.0
+dotnet run   --project PCEval/PCEval.csproj -f net9.0-windows10.0.19041.0
+```
+
+### Build and run on macOS
+
+```bash
+cd src
+dotnet build PCEval/PCEval.csproj -f net9.0-maccatalyst
+dotnet run   --project PCEval/PCEval.csproj -f net9.0-maccatalyst
+```
+
+### Run the unit tests (no MAUI workload needed)
+
+```bash
+cd src
+dotnet test PCEval.Tests/PCEval.Tests.csproj
+```
+
+All 74 tests cover EDID parsing, gamut coverage (Sutherland-Hodgman), scorecard
+logic, tier matching, and Retina PPI calculations.
+
+### Features
+
+**Tab 1 – Display**
+
+Auto-detects all connected monitors and scores each one independently against
+Apple Retina Display reference targets.  Multi-monitor support: a dropdown
+selector appears when more than one monitor is connected.
+
+- Resolution, refresh rate, adaptive sync range
+- HDR support tier (from EDID CTA-861 HDR Static Metadata)
+- Colour gamut coverage — sRGB, DCI-P3, and Adobe RGB (Sutherland-Hodgman)
+- Physical diagonal size (from EDID)
+- ICC / colour profile name
+- Panel interface type (from EDID)
+
+Scorecard per display: Pixel Density (PPI), DCI-P3 Gamut, Refresh Rate, HDR Support.
+
+**Tab 2 – Processor**
+
+Auto-detects the CPU / SoC and scores it across seven dimensions (single-core,
+multi-core, efficiency, sustained, GPU, real-world, platform) vs the Apple M3 Pro
+baseline.  Includes strengths, weaknesses, and consumer-friendly notes.
+
+**Tab 3 – Retina Checker**
+
+Standalone Retina Display Checker — enter your screen diagonal and viewing
+distance to see whether your display qualifies as a Retina Display.
+
+### Platform support
+
+| Platform | Resolution / Refresh | EDID | ICC Profile | HDR / Sync |
+|----------|---------------------|------|-------------|------------|
+| Windows (WinUI 3) | WMI Win32_VideoController | Registry (PnP) | WMI registry | EDID CTA-861 |
+| macOS | `system_profiler` | `ioreg` | ColorSync | `system_profiler` |
+| Linux | `xrandr` | `/sys/class/drm/*/edid` | `colormgr` | `xrandr` |
 
 ---
 
-## PC Evaluator (`display_eval.py`)
+## Legacy Python Tools
 
-A two-tab desktop GUI that scores your hardware against Apple standards.
+The original Python/tkinter tools remain in the repository root for reference.
 
-```bash
-python3 display_eval.py
-```
+
 
 ### Tab 1 – Display
 

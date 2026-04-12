@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:PCEval.ViewModels"
+             xmlns:models="clr-namespace:PCEval.Models"
+             x:Class="PCEval.Views.ProcessorPage"
+             Title="Processor">
+
+    <ContentPage.BindingContext>
+        <vm:ProcessorViewModel />
+    </ContentPage.BindingContext>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+
+            <!-- Title -->
+            <Label Text="Processor Evaluator"
+                   FontSize="22" FontAttributes="Bold" HorizontalOptions="Center" />
+            <Label Text="How does your CPU / SoC compare to the Apple M3 Pro baseline?"
+                   FontSize="13" TextColor="Gray" HorizontalOptions="Center"
+                   Margin="0,0,0,8" />
+
+            <!-- Loading indicator -->
+            <ActivityIndicator IsRunning="{Binding IsLoading}"
+                               IsVisible="{Binding IsLoading}"
+                               HorizontalOptions="Center" />
+
+            <!-- Detected CPU info -->
+            <Frame Padding="12" CornerRadius="8" BorderColor="#ddd">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Detected Processor Info"
+                           FontAttributes="Bold" FontSize="15" Margin="0,0,0,4" />
+
+                    <Grid ColumnDefinitions="*,*" RowSpacing="4">
+                        <Label Grid.Row="0" Grid.Column="0" Text="CPU / SoC:"         TextColor="Gray" />
+                        <Label Grid.Row="0" Grid.Column="1" Text="{Binding CpuModel}"  FontAttributes="Bold" />
+
+                        <Label Grid.Row="1" Grid.Column="0" Text="Recognised Tier:"   TextColor="Gray" />
+                        <Label Grid.Row="1" Grid.Column="1" Text="{Binding TierLabel}" FontAttributes="Bold" />
+
+                        <Label Grid.Row="2" Grid.Column="0" Text="Vendor:"            TextColor="Gray" />
+                        <Label Grid.Row="2" Grid.Column="1" Text="{Binding Vendor}"   FontAttributes="Bold" />
+
+                        <Label Grid.Row="3" Grid.Column="0" Text="Architecture:"      TextColor="Gray" />
+                        <Label Grid.Row="3" Grid.Column="1" Text="{Binding Architecture}" FontAttributes="Bold" />
+
+                        <Label Grid.Row="4" Grid.Column="0" Text="Cores:"             TextColor="Gray" />
+                        <Label Grid.Row="4" Grid.Column="1" Text="{Binding Cores}"    FontAttributes="Bold" />
+
+                        <Label Grid.Row="5" Grid.Column="0" Text="Threads:"           TextColor="Gray" />
+                        <Label Grid.Row="5" Grid.Column="1" Text="{Binding Threads}"  FontAttributes="Bold" />
+
+                        <Label Grid.Row="6" Grid.Column="0" Text="Max Frequency:"     TextColor="Gray" />
+                        <Label Grid.Row="6" Grid.Column="1" Text="{Binding MaxFreq}"  FontAttributes="Bold" />
+
+                        <Label Grid.Row="7" Grid.Column="0" Text="Typical TDP:"       TextColor="Gray" />
+                        <Label Grid.Row="7" Grid.Column="1" Text="{Binding TypicalTdp}" FontAttributes="Bold" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Scorecard vs M3 Pro -->
+            <Frame Padding="12" CornerRadius="8" BorderColor="#ddd">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Scorecard vs Apple M3 Pro"
+                           FontAttributes="Bold" FontSize="15" Margin="0,0,0,4" />
+
+                    <!-- Column headers -->
+                    <Grid ColumnDefinitions="*,80,80,55" Padding="0,0,0,4">
+                        <Label Grid.Column="0" Text="Dimension"        FontAttributes="Bold" FontSize="11" />
+                        <Label Grid.Column="1" Text="Your Score"       FontAttributes="Bold" FontSize="11" />
+                        <Label Grid.Column="2" Text="Reference"        FontAttributes="Bold" FontSize="11" />
+                        <Label Grid.Column="3" Text="Result"           FontAttributes="Bold" FontSize="11" />
+                    </Grid>
+                    <BoxView HeightRequest="1" Color="#ddd" Margin="0,2,0,4" />
+
+                    <!-- Dimension rows -->
+                    <CollectionView ItemsSource="{Binding DimensionRows}">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:ProcessorScorecardRow">
+                                <VerticalStackLayout Padding="0,4" Spacing="2">
+                                    <Grid ColumnDefinitions="*,80,80,55">
+                                        <Label Grid.Column="0" Text="{Binding Metric}"
+                                               FontSize="13" />
+                                        <Label Grid.Column="1" Text="{Binding Value}"
+                                               FontSize="13" />
+                                        <Label Grid.Column="2" Text="{Binding Target}"
+                                               FontSize="11" TextColor="Gray" />
+                                        <Label Grid.Column="3" Text="{Binding Result}"
+                                               FontAttributes="Bold" FontSize="13"
+                                               TextColor="{Binding ResultColor}" />
+                                    </Grid>
+                                    <!-- Consumer insight line -->
+                                    <Label Text="{Binding Insight}"
+                                           FontSize="11" TextColor="Gray"
+                                           LineBreakMode="WordWrap"
+                                           Margin="0,0,0,4" />
+                                </VerticalStackLayout>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Strengths & Weaknesses -->
+            <Frame Padding="12" CornerRadius="8" BorderColor="#ddd">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Strengths &amp; Weaknesses"
+                           FontAttributes="Bold" FontSize="15" Margin="0,0,0,4" />
+
+                    <CollectionView ItemsSource="{Binding SummaryRows}">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:ProcessorScorecardRow">
+                                <Grid ColumnDefinitions="100,*" Padding="0,4">
+                                    <Label Grid.Column="0" Text="{Binding Metric}"
+                                           FontAttributes="Bold" FontSize="13"
+                                           TextColor="{Binding ResultColor}"
+                                           VerticalOptions="Start" />
+                                    <Label Grid.Column="1" Text="{Binding Value}"
+                                           FontSize="13"
+                                           LineBreakMode="WordWrap" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Overall grade -->
+            <BoxView HeightRequest="1" Color="#ddd" Margin="0,4" />
+            <Label Text="{Binding OverallGrade}"
+                   FontSize="48" FontAttributes="Bold"
+                   TextColor="{Binding OverallColor}"
+                   HorizontalOptions="Center" />
+            <Label Text="{Binding OverallVerdict}"
+                   FontSize="14" TextColor="{Binding OverallColor}"
+                   HorizontalOptions="Center" HorizontalTextAlignment="Center" />
+
+            <!-- Footnote -->
+            <Label Text="Scores are relative to Apple M3 Pro = 100%.  Values are derived from published benchmark data and manufacturer specifications; not independently verified."
+                   FontSize="10" TextColor="Gray"
+                   HorizontalOptions="Center" HorizontalTextAlignment="Center"
+                   Margin="0,8,0,16" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
