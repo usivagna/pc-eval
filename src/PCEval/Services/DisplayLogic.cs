@@ -178,7 +178,8 @@ public static class DisplayLogic
             {
                 int dtdOffset = data[extOff + 2];
                 int end = Math.Min(dtdOffset, 126);
-                ParseCtaBlocks(data, extOff + 4, end, result);
+                // Absolute data positions: start at extOff+4, end at extOff+end
+                ParseCtaBlocks(data, extOff + 4, extOff + end, result);
             }
             else if (extTag == 0x70) // DisplayID 2.x
             {
@@ -190,7 +191,8 @@ public static class DisplayLogic
                     int blockLen   = data[extOff + pos + 2];
                     if (pos + 3 + blockLen > end) break;
                     if (blockType == 0x81)
-                        ParseCtaBlocks(data, extOff + pos + 3, pos + 3 + blockLen, result);
+                        // Absolute data positions: start at extOff+pos+3, end at extOff+pos+3+blockLen
+                        ParseCtaBlocks(data, extOff + pos + 3, extOff + pos + 3 + blockLen, result);
                     pos += 3 + blockLen;
                 }
             }
@@ -199,10 +201,10 @@ public static class DisplayLogic
         return result;
     }
 
-    private static void ParseCtaBlocks(byte[] data, int start, int length, DisplayInfo result)
+    private static void ParseCtaBlocks(byte[] data, int start, int absoluteEnd, DisplayInfo result)
     {
         int pos = start;
-        int end = start + length;
+        int end = Math.Min(absoluteEnd, data.Length);
         while (pos < end && pos < data.Length)
         {
             byte hdrByte = data[pos];

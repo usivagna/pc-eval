@@ -21,14 +21,14 @@ namespace Microsoft.Maui.Graphics
         {
             // Strip leading '#'
             hex = hex.TrimStart('#');
-            if (hex.Length == 6)
+            if (hex.Length == 6 && IsValidHex(hex))
             {
                 float r = Convert.ToInt32(hex[..2], 16) / 255f;
                 float g = Convert.ToInt32(hex[2..4], 16) / 255f;
                 float b = Convert.ToInt32(hex[4..6], 16) / 255f;
                 return new Color(r, g, b);
             }
-            if (hex.Length == 8)
+            if (hex.Length == 8 && IsValidHex(hex))
             {
                 float a = Convert.ToInt32(hex[..2], 16) / 255f;
                 float r = Convert.ToInt32(hex[2..4], 16) / 255f;
@@ -37,6 +37,13 @@ namespace Microsoft.Maui.Graphics
                 return new Color(r, g, b, a);
             }
             return new Color(0, 0, 0);
+        }
+
+        private static bool IsValidHex(string s)
+        {
+            foreach (char c in s)
+                if (!Uri.IsHexDigit(c)) return false;
+            return true;
         }
 
         public static Color FromRgb(int r, int g, int b) =>
