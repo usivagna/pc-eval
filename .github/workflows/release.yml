@@ -80,6 +80,7 @@ jobs:
           dotnet publish src/PCEval/PCEval.csproj `
             -f net9.0-windows10.0.19041.0 `
             -c Release `
+            -r win-x64 `
             -p:ApplicationDisplayVersion=${{ steps.version.outputs.VERSION }} `
             -p:ApplicationVersion=${{ github.run_number }} `
             -p:WindowsPackageType=None `
@@ -135,7 +136,7 @@ jobs:
           mkdir -p dist
           # Prefer a .pkg installer; fall back to zipping a .app bundle
           PKG=$(find publish/macos -name "*.pkg" | head -1)
-          APP=$(find publish/macos -name "*.app" -maxdepth 3 | head -1)
+          APP=$(find publish/macos -name "*.app" -print -quit)
           if [ -n "$PKG" ]; then
             cp "$PKG" dist/PCEval-${{ steps.version.outputs.VERSION }}-macos.pkg
           elif [ -n "$APP" ]; then
