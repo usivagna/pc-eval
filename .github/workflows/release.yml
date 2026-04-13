@@ -183,21 +183,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Create and push tag (workflow_dispatch only)
         if: github.event_name == 'workflow_dispatch'
         run: |
           VERSION="${{ github.event.inputs.version }}"
+          TAG="v${VERSION}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-            echo "Tag v${VERSION} already exists – skipping tag creation."
-          else
-            git tag "v${VERSION}"
-            git push origin "v${VERSION}"
+          if git ls-remote --tags --exit-code origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Error: tag ${TAG} already exists on origin."
+            exit 1
           fi
-          # Ensure the tag ref is visible to subsequent steps
-          git fetch --tags
+          git tag "${TAG}"
+          git push origin "${TAG}"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
