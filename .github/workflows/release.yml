@@ -42,7 +42,12 @@ jobs:
       - name: Rename APK
         run: |
           mkdir -p dist
-          find publish/android -name "*.apk" | head -1 | xargs -I{} cp {} dist/PCEval-${{ steps.version.outputs.VERSION }}-android.apk
+          APK=$(find publish/android -name "*.apk" | head -1)
+          if [ -z "$APK" ]; then
+            echo "ERROR: No APK file found in publish/android" >&2
+            exit 1
+          fi
+          cp "$APK" dist/PCEval-${{ steps.version.outputs.VERSION }}-android.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -128,18 +133,19 @@ jobs:
       - name: Collect macOS artifact
         run: |
           mkdir -p dist
-          # dotnet publish may produce a .pkg or a .app; collect whichever is present
+          # Prefer a .pkg installer; fall back to zipping a .app bundle
           PKG=$(find publish/macos -name "*.pkg" | head -1)
           APP=$(find publish/macos -name "*.app" -maxdepth 3 | head -1)
           if [ -n "$PKG" ]; then
             cp "$PKG" dist/PCEval-${{ steps.version.outputs.VERSION }}-macos.pkg
           elif [ -n "$APP" ]; then
             cd publish/macos
-            zip -r ../../dist/PCEval-${{ steps.version.outputs.VERSION }}-macos.zip "$(basename "$APP")"
+            zip -r "../../dist/PCEval-${{ steps.version.outputs.VERSION }}-macos.zip" "$(basename "$APP")"
             cd -
           else
-            # Fall back: zip the entire publish output
-            cd publish/macos && zip -r ../../dist/PCEval-${{ steps.version.outputs.VERSION }}-macos.zip . && cd -
+            echo "ERROR: No .pkg or .app found in publish/macos" >&2
+            ls -la publish/macos || true
+            exit 1
           fi
 
       - uses: actions/upload-artifact@v4

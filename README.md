@@ -59,7 +59,7 @@ Pre-built packages for every tagged release are published automatically on the
 | Platform | File | Notes |
 |----------|------|-------|
 | **Windows** (x64) | `PCEval-<version>-windows-x64.zip` | Extract and run `PCEval.exe` |
-| **macOS** (Mac Catalyst) | `PCEval-<version>-macos.pkg` or `.zip` | Double-click to install; allow unsigned app in **System Settings → Privacy & Security** |
+| **macOS** (Mac Catalyst) | `PCEval-<version>-macos.pkg` or `PCEval-<version>-macos.zip` | `.pkg` when available (double-click to install); otherwise `.zip` containing a `.app` bundle — drag to Applications. Allow the unsigned app in **System Settings → Privacy & Security**. |
 | **Android** | `PCEval-<version>-android.apk` | Enable **Install unknown apps** for your browser/file manager before sideloading |
 
 > **iOS** builds are not included in automated releases because they require an
