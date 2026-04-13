@@ -51,7 +51,21 @@ src/
     └── RetinaCheckerTests.cs         # Tests for PPI and Retina calculations
 ```
 
-### Requirements
+### Download & Install (pre-built releases)
+
+Pre-built packages for every tagged release are published automatically on the
+[GitHub Releases page](https://github.com/usivagna/pc-eval/releases).
+
+| Platform | File | Notes |
+|----------|------|-------|
+| **Windows** (x64) | `PCEval-<version>-windows-x64.zip` | Extract and run `PCEval.exe` |
+| **macOS** (Mac Catalyst) | `PCEval-<version>-macos.pkg` or `.zip` | Double-click to install; allow unsigned app in **System Settings → Privacy & Security** |
+| **Android** | `PCEval-<version>-android.apk` | Enable **Install unknown apps** for your browser/file manager before sideloading |
+
+> **iOS** builds are not included in automated releases because they require an
+> Apple Developer certificate. Build from source (see below) or use TestFlight.
+
+### Requirements (build from source)
 
 | Requirement | Version |
 |-------------|---------|
@@ -60,7 +74,7 @@ src/
 | Windows target | Windows 10 1903 / SDK 10.0.19041+ |
 | macOS target | Xcode 15+ (macOS 14+) |
 
-### Install the MAUI workload
+### Install the MAUI workload (build from source)
 
 ```bash
 dotnet workload install maui
