@@ -210,7 +210,7 @@ public static class DisplayLogic
             byte hdrByte = data[pos];
             int  tag     = (hdrByte >> 5) & 0x07;
             int  len     = hdrByte & 0x1F;
-            if (pos + 1 + len > data.Length) break;
+            if (pos + 1 + len > end) break;
             if (tag == 7 && len > 0)
             {
                 byte extTag = data[pos + 1];

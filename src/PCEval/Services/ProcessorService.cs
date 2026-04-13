@@ -58,9 +58,19 @@ public class ProcessorService : IProcessorService
                 CreateNoWindow         = true,
             };
             p.Start();
-            string output = p.StandardOutput.ReadToEnd();
-            p.WaitForExit(timeoutMs);
-            return output;
+            // Read stdout/stderr asynchronously to prevent deadlock when the
+            // stderr buffer fills up.  Enforce the timeout on process exit and
+            // kill the process if it exceeds the limit.
+            var stdoutTask = p.StandardOutput.ReadToEndAsync();
+            var stderrTask = p.StandardError.ReadToEndAsync();
+            bool exited = p.WaitForExit(timeoutMs);
+            if (!exited)
+            {
+                try { p.Kill(entireProcessTree: true); } catch { }
+                return "";
+            }
+            stdoutTask.Wait(500);
+            return stdoutTask.IsCompletedSuccessfully ? stdoutTask.Result : "";
         }
         catch
         {

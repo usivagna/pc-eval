@@ -112,8 +112,7 @@ public partial class DisplayViewModel : ObservableObject
     private void RefreshDetectedInfo()
     {
         var inf = _currentDisplay;
-        int w = inf.ResolutionWidth ?? 0;
-        int h = inf.ResolutionHeight ?? 0;
+        var (w, h) = GetEffectiveResolution(inf);
 
         Resolution   = w > 0 && h > 0 ? $"{w} × {h} px" : "Unknown";
         RefreshRate  = inf.RefreshRate.HasValue ? $"{inf.RefreshRate.Value:F0} Hz" : "Unknown";
@@ -127,11 +126,33 @@ public partial class DisplayViewModel : ObservableObject
         ColorProfile = inf.IccProfileName ?? "Not detected";
     }
 
+    /// <summary>
+    /// Returns the effective (w, h) for a display.
+    /// Falls back to <see cref="DeviceDisplay.MainDisplayInfo"/> when OS/EDID
+    /// detection doesn't provide a resolution — mirrors the Python
+    /// <c>winfo_screenwidth()</c> fallback in display_eval.py.
+    /// </summary>
+    private static (int w, int h) GetEffectiveResolution(Models.DisplayInfo inf)
+    {
+        int w = inf.ResolutionWidth  ?? 0;
+        int h = inf.ResolutionHeight ?? 0;
+        if (w > 0 && h > 0) return (w, h);
+        try
+        {
+            var screen = DeviceDisplay.MainDisplayInfo;
+            return ((int)screen.Width, (int)screen.Height);
+        }
+        catch { return (w, h); }
+    }
+
     private void UpdateScores()
     {
-        var inf      = _currentDisplay;
-        int distIdx  = Math.Clamp(SelectedDistanceIndex, 0, ViewingDistances.Count - 1);
-        double dist  = ViewingDistances[distIdx].Inches;
+        var inf     = _currentDisplay;
+        int distIdx = Math.Clamp(SelectedDistanceIndex, 0, ViewingDistances.Count - 1);
+        double dist = ViewingDistances[distIdx].Inches;
+
+        // Use the same effective resolution as RefreshDetectedInfo (with fallback)
+        var (w, h) = GetEffectiveResolution(inf);
 
         // Parse diagonal
         double diagonal = 0;
@@ -140,8 +161,8 @@ public partial class DisplayViewModel : ObservableObject
 
         var (rows, grade, desc, color) = DisplayLogic.BuildScorecard(
             inf,
-            inf.ResolutionWidth,
-            inf.ResolutionHeight,
+            w > 0 ? w : inf.ResolutionWidth,
+            h > 0 ? h : inf.ResolutionHeight,
             diagonal,
             dist);
 

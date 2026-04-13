@@ -486,7 +486,7 @@ public static class ProcessorLogic
             .ToList();
 
         if (pcts.Count == 0)
-            return ("—", Color.FromArgb("#555555"), "Processor not recognised — install data unavailable");
+            return ("—", Color.FromArgb("#555555"), "Processor not recognised — no tier data available");
 
         double overall = pcts.Average();
         string grade   = DisplayLogic.ScoreLabel(overall);

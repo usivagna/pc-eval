@@ -32,6 +32,9 @@ public static class MauiProgram
         builder.Services.AddTransient<ProcessorPage>();
         builder.Services.AddTransient<RetinaCheckerPage>();
 
+        // Shell and App (must be registered after pages so DI can construct them)
+        builder.Services.AddTransient<AppShell>();
+
 #if DEBUG
         builder.Logging.AddDebug();
 #endif

@@ -1,25 +1,13 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
        xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-       xmlns:views="clr-namespace:PCEval.Views"
        x:Class="PCEval.AppShell"
        Title="PC Evaluator">
 
     <TabBar>
-        <ShellContent
-            Title="Display"
-            ContentTemplate="{DataTemplate views:DisplayPage}"
-            Route="DisplayPage" />
-
-        <ShellContent
-            Title="Processor"
-            ContentTemplate="{DataTemplate views:ProcessorPage}"
-            Route="ProcessorPage" />
-
-        <ShellContent
-            Title="Retina Checker"
-            ContentTemplate="{DataTemplate views:RetinaCheckerPage}"
-            Route="RetinaCheckerPage" />
+        <ShellContent Title="Display"         Route="DisplayPage"       x:Name="DisplayContent" />
+        <ShellContent Title="Processor"       Route="ProcessorPage"     x:Name="ProcessorContent" />
+        <ShellContent Title="Retina Checker"  Route="RetinaCheckerPage" x:Name="RetinaContent" />
     </TabBar>
 
 </Shell>

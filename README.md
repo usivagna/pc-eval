@@ -126,7 +126,7 @@ distance to see whether your display qualifies as a Retina Display.
 |----------|---------------------|------|-------------|------------|
 | Windows (WinUI 3) | WMI Win32_VideoController | Registry (PnP) | WMI registry | EDID CTA-861 |
 | macOS | `system_profiler` | `ioreg` | ColorSync | `system_profiler` |
-| Linux | `xrandr` | `/sys/class/drm/*/edid` | `colormgr` | `xrandr` |
+| Linux | `xrandr` | `/sys/class/drm/*/edid` | Not currently detected | `xrandr` |
 
 ---
 
@@ -178,7 +178,7 @@ count) vs the Apple M3 Pro baseline.
 | Platform | Resolution / Refresh | EDID | ICC Profile | HDR / Sync |
 |----------|---------------------|------|-------------|------------|
 | macOS | `system_profiler` | `ioreg` | `~/Library/ColorSync/Profiles` | `system_profiler` |
-| Linux | `xrandr` | `/sys/class/drm/*/edid` | `colormgr` | `xrandr` |
+| Linux | `xrandr` | `/sys/class/drm/*/edid` | Not currently detected | `xrandr` |
 | Windows | WMI / PowerShell | `Get-PnpDevice` (Registry) | WMI | WMI |
 
 ### Running the tests
