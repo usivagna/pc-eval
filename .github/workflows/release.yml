@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. 1.0.0)'
+        description: 'Release version without the v prefix (e.g. 1.0.0)'
         required: true
         default: '1.0.0'
 
@@ -35,7 +35,8 @@ jobs:
         id: version
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "VERSION=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+            VER="${{ github.event.inputs.version }}"
+            echo "VERSION=${VER#v}" >> "$GITHUB_OUTPUT"
           else
             echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           fi
@@ -86,7 +87,8 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "VERSION=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+            VER="${{ github.event.inputs.version }}"
+            echo "VERSION=${VER#v}" >> "$GITHUB_OUTPUT"
           else
             echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           fi
@@ -135,7 +137,8 @@ jobs:
         id: version
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "VERSION=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+            VER="${{ github.event.inputs.version }}"
+            echo "VERSION=${VER#v}" >> "$GITHUB_OUTPUT"
           else
             echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           fi
@@ -187,11 +190,20 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Resolve tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RAW="${{ github.event.inputs.version }}"
+            echo "TAG=v${RAW#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "TAG=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create and push tag (workflow_dispatch only)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          VERSION="${{ github.event.inputs.version }}"
-          TAG="v${VERSION}"
+          TAG="${{ steps.tag.outputs.TAG }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           if git ls-remote --tags --exit-code origin "refs/tags/${TAG}" >/dev/null 2>&1; then
@@ -209,7 +221,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', github.event.inputs.version) || github.ref_name }}
+          tag_name: ${{ steps.tag.outputs.TAG }}
           generate_release_notes: true
           files: |
             artifacts/**/*
