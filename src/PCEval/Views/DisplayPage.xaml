@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:PCEval.Models"
+             x:Class="PCEval.Views.DisplayPage"
+             Title="Display">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+
+            <!-- Title -->
+            <Label Text="Display Evaluator"
+                   FontSize="22" FontAttributes="Bold" HorizontalOptions="Center" />
+            <Label Text="How does your display compare to Apple Retina standards?"
+                   FontSize="13" TextColor="Gray" HorizontalOptions="Center"
+                   Margin="0,0,0,8" />
+
+            <!-- Loading indicator -->
+            <ActivityIndicator IsRunning="{Binding IsLoading}"
+                               IsVisible="{Binding IsLoading}"
+                               HorizontalOptions="Center" />
+
+            <!-- Monitor selector (visible only when >1 monitor) -->
+            <Frame IsVisible="{Binding HasMultipleMonitors}"
+                   Padding="10" CornerRadius="8" BorderColor="#ddd">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Monitor:" FontAttributes="Bold" FontSize="13" />
+                    <Picker ItemsSource="{Binding MonitorNames}"
+                            SelectedIndex="{Binding SelectedMonitorIndex}"
+                            Title="Select monitor" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Detected display info -->
+            <Frame Padding="12" CornerRadius="8" BorderColor="#ddd">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Detected Display Info"
+                           FontAttributes="Bold" FontSize="15" Margin="0,0,0,4" />
+
+                    <Grid ColumnDefinitions="*,*" RowSpacing="4">
+                        <Label Grid.Row="0" Grid.Column="0" Text="Resolution:" TextColor="Gray" />
+                        <Label Grid.Row="0" Grid.Column="1" Text="{Binding Resolution}"
+                               FontAttributes="Bold" />
+
+                        <Label Grid.Row="1" Grid.Column="0" Text="Refresh Rate:" TextColor="Gray" />
+                        <Label Grid.Row="1" Grid.Column="1" Text="{Binding RefreshRate}"
+                               FontAttributes="Bold" />
+
+                        <Label Grid.Row="2" Grid.Column="0" Text="Adaptive Sync:" TextColor="Gray" />
+                        <Label Grid.Row="2" Grid.Column="1" Text="{Binding AdaptiveSync}"
+                               FontAttributes="Bold" />
+
+                        <Label Grid.Row="3" Grid.Column="0" Text="DCI-P3 Gamut:" TextColor="Gray" />
+                        <Label Grid.Row="3" Grid.Column="1" Text="{Binding DciP3Gamut}"
+                               FontAttributes="Bold" />
+
+                        <Label Grid.Row="4" Grid.Column="0" Text="sRGB Gamut:" TextColor="Gray" />
+                        <Label Grid.Row="4" Grid.Column="1" Text="{Binding SrgbGamut}"
+                               FontAttributes="Bold" />
+
+                        <Label Grid.Row="5" Grid.Column="0" Text="HDR:" TextColor="Gray" />
+                        <Label Grid.Row="5" Grid.Column="1" Text="{Binding HdrTier}"
+                               FontAttributes="Bold" />
+
+                        <Label Grid.Row="6" Grid.Column="0" Text="Panel Type:" TextColor="Gray" />
+                        <Label Grid.Row="6" Grid.Column="1" Text="{Binding PanelType}"
+                               FontAttributes="Bold" />
+
+                        <Label Grid.Row="7" Grid.Column="0" Text="Color Profile:" TextColor="Gray" />
+                        <Label Grid.Row="7" Grid.Column="1" Text="{Binding ColorProfile}"
+                               FontAttributes="Bold" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Setup inputs -->
+            <Frame Padding="12" CornerRadius="8" BorderColor="#ddd">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Your Setup"
+                           FontAttributes="Bold" FontSize="15" Margin="0,0,0,4" />
+
+                    <Label Text="Screen diagonal (inches):" FontSize="13" />
+                    <Entry Placeholder="e.g. 27"
+                           Keyboard="Numeric"
+                           Text="{Binding DiagonalInput}"
+                           WidthRequest="120"
+                           HorizontalOptions="Start" />
+
+                    <Label Text="Viewing distance:" FontSize="13" />
+                    <Picker ItemsSource="{Binding ViewingDistanceLabels}"
+                            SelectedIndex="{Binding SelectedDistanceIndex}" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Scorecard -->
+            <Frame Padding="12" CornerRadius="8" BorderColor="#ddd">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Scorecard vs Apple Retina Targets"
+                           FontAttributes="Bold" FontSize="15" Margin="0,0,0,4" />
+
+                    <!-- Header row -->
+                    <Grid ColumnDefinitions="*,80,80,60" Padding="0,0,0,4">
+                        <Label Grid.Column="0" Text="Metric"   FontAttributes="Bold" FontSize="11" />
+                        <Label Grid.Column="1" Text="Value"    FontAttributes="Bold" FontSize="11" />
+                        <Label Grid.Column="2" Text="Target"   FontAttributes="Bold" FontSize="11" />
+                        <Label Grid.Column="3" Text="Result"   FontAttributes="Bold" FontSize="11" />
+                    </Grid>
+                    <BoxView HeightRequest="1" Color="#ddd" Margin="0,2,0,4" />
+
+                    <!-- Data rows -->
+                    <CollectionView ItemsSource="{Binding ScorecardRows}">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:DisplayScorecardRow">
+                                <Grid ColumnDefinitions="*,80,80,60" Padding="0,4">
+                                    <Label Grid.Column="0" Text="{Binding Metric}" FontSize="13" />
+                                    <Label Grid.Column="1" Text="{Binding Value}"  FontSize="13" />
+                                    <Label Grid.Column="2" Text="{Binding Target}" FontSize="11"
+                                           TextColor="Gray" />
+                                    <Label Grid.Column="3" Text="{Binding Result}"
+                                           FontAttributes="Bold" FontSize="13"
+                                           TextColor="{Binding ResultColor}" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Overall grade -->
+            <BoxView HeightRequest="1" Color="#ddd" Margin="0,4" />
+            <Label Text="{Binding OverallGrade}"
+                   FontSize="48" FontAttributes="Bold"
+                   TextColor="{Binding OverallColor}"
+                   HorizontalOptions="Center" />
+            <Label Text="{Binding OverallDesc}"
+                   FontSize="14" TextColor="{Binding OverallColor}"
+                   HorizontalOptions="Center" HorizontalTextAlignment="Center"
+                   Margin="0,0,0,16" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

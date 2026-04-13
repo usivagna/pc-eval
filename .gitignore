@@ -1,1 +1,7 @@
 __pycache__/
+
+# .NET build artifacts
+src/**/bin/
+src/**/obj/
+*.user
+.vs/
