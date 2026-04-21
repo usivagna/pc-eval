@@ -5,9 +5,10 @@
        Title="PC Evaluator">
 
     <TabBar>
-        <ShellContent Title="Display"         Route="DisplayPage"       x:Name="DisplayContent" />
-        <ShellContent Title="Processor"       Route="ProcessorPage"     x:Name="ProcessorContent" />
-        <ShellContent Title="Retina Checker"  Route="RetinaCheckerPage" x:Name="RetinaContent" />
+        <ShellContent Title="Display"           Route="DisplayPage"          x:Name="DisplayContent" />
+        <ShellContent Title="Processor"         Route="ProcessorPage"        x:Name="ProcessorContent" />
+        <ShellContent Title="Memory &amp; Storage" Route="MemoryStoragePage" x:Name="MemoryStorageContent" />
+        <ShellContent Title="Retina Checker"    Route="RetinaCheckerPage"    x:Name="RetinaContent" />
     </TabBar>
 
 </Shell>

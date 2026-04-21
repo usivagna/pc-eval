@@ -29,10 +29,13 @@
   <ItemGroup>
     <Compile Include="..\PCEval\Models\DisplayInfo.cs" Link="Models\DisplayInfo.cs" />
     <Compile Include="..\PCEval\Models\DisplayScorecardRow.cs" Link="Models\DisplayScorecardRow.cs" />
+    <Compile Include="..\PCEval\Models\MemoryStorageInfo.cs" Link="Models\MemoryStorageInfo.cs" />
+    <Compile Include="..\PCEval\Models\MemoryStorageScorecardRow.cs" Link="Models\MemoryStorageScorecardRow.cs" />
     <Compile Include="..\PCEval\Models\PerformanceTier.cs" Link="Models\PerformanceTier.cs" />
     <Compile Include="..\PCEval\Models\ProcessorInfo.cs" Link="Models\ProcessorInfo.cs" />
     <Compile Include="..\PCEval\Models\ProcessorScorecardRow.cs" Link="Models\ProcessorScorecardRow.cs" />
     <Compile Include="..\PCEval\Services\DisplayLogic.cs" Link="Services\DisplayLogic.cs" />
+    <Compile Include="..\PCEval\Services\MemoryStorageLogic.cs" Link="Services\MemoryStorageLogic.cs" />
     <Compile Include="..\PCEval\Services\ProcessorLogic.cs" Link="Services\ProcessorLogic.cs" />
   </ItemGroup>
 
