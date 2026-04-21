@@ -22,6 +22,8 @@ src/
 │   ├── Models/
 │   │   ├── DisplayInfo.cs            # Display data model
 │   │   ├── DisplayScorecardRow.cs    # Scorecard row model
+│   │   ├── MemoryStorageInfo.cs      # Memory & storage data model
+│   │   ├── MemoryStorageScorecardRow.cs  # Memory & storage scorecard row
 │   │   ├── PerformanceTier.cs        # CPU tier data model
 │   │   ├── ProcessorInfo.cs          # Processor data model
 │   │   └── ProcessorScorecardRow.cs  # Processor scorecard row
@@ -29,16 +31,21 @@ src/
 │   │   ├── DisplayLogic.cs           # EDID parsing, gamut maths, scorecard (port of display_info.py)
 │   │   ├── DisplayService.cs         # OS-level display detection (Windows/macOS/Linux)
 │   │   ├── IDisplayService.cs        # Display service interface
+│   │   ├── IMemoryStorageService.cs  # Memory & storage service interface
+│   │   ├── IProcessorService.cs      # Processor service interface
+│   │   ├── MemoryStorageLogic.cs     # Memory & storage scorecard vs M3 Pro baseline
+│   │   ├── MemoryStorageService.cs   # OS-level RAM/storage detection (Windows/macOS/Linux)
 │   │   ├── ProcessorLogic.cs         # Tier database and scorecard (port of processor_info.py)
-│   │   ├── ProcessorService.cs       # OS-level CPU detection (Windows/macOS/Linux)
-│   │   └── IProcessorService.cs      # Processor service interface
+│   │   └── ProcessorService.cs       # OS-level CPU detection (Windows/macOS/Linux)
 │   ├── ViewModels/
 │   │   ├── DisplayViewModel.cs       # Display tab ViewModel (MVVM)
+│   │   ├── MemoryStorageViewModel.cs # Memory & Storage tab ViewModel (MVVM)
 │   │   ├── ProcessorViewModel.cs     # Processor tab ViewModel (MVVM)
 │   │   └── RetinaCheckerViewModel.cs # Retina Checker ViewModel
 │   ├── Views/
-│   │   ├── DisplayPage.xaml / .cs    # Display evaluation tab
-│   │   ├── ProcessorPage.xaml / .cs  # Processor evaluation tab
+│   │   ├── DisplayPage.xaml / .cs        # Display evaluation tab
+│   │   ├── MemoryStoragePage.xaml / .cs  # Memory & Storage evaluation tab
+│   │   ├── ProcessorPage.xaml / .cs      # Processor evaluation tab
 │   │   └── RetinaCheckerPage.xaml / .cs  # Retina Display Checker tab
 │   └── Platforms/
 │       ├── Windows/                  # WinUI 3 entry point + package manifest
@@ -46,9 +53,10 @@ src/
 │       ├── iOS/                      # iOS entry point
 │       └── Android/                  # Android entry point
 └── PCEval.Tests/                     # xUnit test project
-    ├── DisplayLogicTests.cs          # Tests for EDID parsing, gamut, scorecard
-    ├── ProcessorLogicTests.cs        # Tests for tier matching and scoring
-    └── RetinaCheckerTests.cs         # Tests for PPI and Retina calculations
+    ├── DisplayLogicTests.cs              # Tests for EDID parsing, gamut, scorecard
+    ├── MemoryStorageLogicTests.cs        # Tests for memory & storage scoring
+    ├── ProcessorLogicTests.cs            # Tests for tier matching and scoring
+    └── RetinaCheckerTests.cs             # Tests for PPI and Retina calculations
 ```
 
 ### Download & Install (pre-built releases)

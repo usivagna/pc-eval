@@ -3,10 +3,12 @@ PC Evaluator
 ============
 A tabbed desktop GUI that scores your system against Apple standards:
 
-  Tab 1 – Display    : auto-detects display specs and scores against Apple
-                       Retina Display reference targets.
-  Tab 2 – Processor  : auto-detects CPU / SoC and scores it across seven
-                       dimensions vs the Apple M3 Pro baseline.
+  Tab 1 – Display          : auto-detects display specs and scores against Apple
+                             Retina Display reference targets.
+  Tab 2 – Processor        : auto-detects CPU / SoC and scores it across seven
+                             dimensions vs the Apple M3 Pro baseline.
+  Tab 3 – Memory & Storage : auto-detects RAM and storage and compares them
+                             against the Apple M3 Pro baseline.
 
 Run with:
     python display_eval.py
@@ -21,6 +23,7 @@ from tkinter import font, ttk
 from typing import Any, Dict, List, Optional
 
 import display_info as di
+import memory_storage_info as msi
 import processor_info as pi
 
 # ---------------------------------------------------------------------------
@@ -99,13 +102,14 @@ class PCEvalApp(tk.Tk):
 
     def __init__(self) -> None:
         super().__init__()
-        self.title("PC Evaluator – Display & Processor vs Apple Standards")
+        self.title("PC Evaluator – Display, Processor & Memory vs Apple Standards")
         self.resizable(False, False)
 
-        # Fetch system info up-front so both tabs share the same snapshot
+        # Fetch system info up-front so all tabs share the same snapshot
         self._all_displays: List[Dict[str, Any]] = di.get_all_displays_info()
         self._display_info: Dict[str, Any] = self._all_displays[0]
         self._proc_info: Dict[str, Any] = pi.get_processor_info()
+        self._mem_stor_info: Dict[str, Any] = msi.get_memory_storage_info()
 
         self._screen_w = (
             self._display_info.get("resolution_width") or self.winfo_screenwidth()
@@ -119,6 +123,7 @@ class PCEvalApp(tk.Tk):
 
         self._build_display_tab()
         self._build_processor_tab()
+        self._build_memory_storage_tab()
 
         self._update_display_scores()
 
@@ -642,6 +647,223 @@ class PCEvalApp(tk.Tk):
             font=font.Font(family="Helvetica", size=9),
             justify="center",
         ).grid(row=8, column=0, columnspan=5, pady=(0, 12))
+
+    # ======================================================================
+    # Tab 3 – Memory & Storage
+    # ======================================================================
+
+    def _build_memory_storage_tab(self) -> None:
+        tab = ttk.Frame(self._notebook, padding=18)
+        self._notebook.add(tab, text="  Memory & Storage  ")
+
+        # Scrollable canvas
+        canvas = tk.Canvas(tab, borderwidth=0, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(tab, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+
+        inner = ttk.Frame(canvas, padding=(0, 0, 12, 0))
+        window_id = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        def _on_resize(event: tk.Event) -> None:
+            canvas.itemconfig(window_id, width=event.width)
+
+        def _on_frame_configure(_event: tk.Event) -> None:
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        canvas.bind("<Configure>", _on_resize)
+        inner.bind("<Configure>", _on_frame_configure)
+
+        def _on_mousewheel(event: tk.Event) -> None:
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        self._build_memory_storage_content(inner)
+
+    def _build_memory_storage_content(self, parent: ttk.Frame) -> None:
+        """Populate the memory & storage tab with detected info and scorecard."""
+        inf = self._mem_stor_info
+
+        title_font  = font.Font(family="Helvetica", size=16, weight="bold")
+        val_font    = font.Font(family="Helvetica", size=11, weight="bold")
+        header_font = font.Font(family="Helvetica", size=9, weight="bold")
+        result_font = font.Font(family="Helvetica", size=10, weight="bold")
+        note_font   = font.Font(family="Helvetica", size=9, slant="italic")
+
+        ttk.Label(parent, text="Memory & Storage Evaluator", font=title_font).grid(
+            row=0, column=0, columnspan=4, pady=(0, 4), sticky="w",
+        )
+        ttk.Label(
+            parent,
+            text="How does your RAM and storage compare to the Apple M3 Pro baseline?",
+            foreground=_GRAY,
+        ).grid(row=1, column=0, columnspan=4, pady=(0, 12), sticky="w")
+
+        # ── Detected memory info ───────────────────────────────────────
+        mem_frame = ttk.LabelFrame(parent, text="  Detected Memory Info  ", padding=10)
+        mem_frame.grid(row=2, column=0, columnspan=4, sticky="ew", pady=(0, 10))
+
+        def _gb(key: str) -> Optional[float]:
+            v = inf.get(key)
+            return v / 1_073_741_824 if v else None
+
+        def _fmt_stor(gb: Optional[float]) -> str:
+            if gb is None:
+                return "Unknown"
+            return f"{gb / 1024:.1f} TB" if gb >= 1024 else f"{gb:.0f} GB"
+
+        ram_gb    = _gb("total_ram_bytes")
+        ram_type  = inf.get("ram_type") or "Unknown"
+        speed_mhz = inf.get("ram_speed_mhz")
+        slots     = inf.get("ram_slots")
+        used      = inf.get("ram_slots_used")
+
+        ram_rows = [
+            ("Total RAM",   f"{ram_gb:.1f} GB" if ram_gb else "Unknown"),
+            ("RAM Type",    ram_type),
+            ("RAM Speed",   f"{speed_mhz} MHz" if speed_mhz else "Unknown"),
+            ("RAM Slots",   (f"{used} / {slots} used" if slots and used else
+                             f"{used} module(s)" if used else "Unknown")),
+        ]
+        for r, (label, value) in enumerate(ram_rows):
+            ttk.Label(mem_frame, text=label + ":").grid(
+                row=r, column=0, sticky="w", padx=(4, 10), pady=2,
+            )
+            tk.Label(mem_frame, text=value, font=val_font, fg="#1a1a1a").grid(
+                row=r, column=1, sticky="w", padx=4, pady=2,
+            )
+
+        # ── Detected storage info ──────────────────────────────────────
+        stor_frame = ttk.LabelFrame(parent, text="  Detected Storage Info  ", padding=10)
+        stor_frame.grid(row=3, column=0, columnspan=4, sticky="ew", pady=(0, 10))
+
+        primary_gb = _gb("primary_storage_bytes") or _gb("total_storage_bytes")
+        total_gb   = _gb("total_storage_bytes")
+        stor_type  = inf.get("storage_type") or "Unknown"
+        stor_model = inf.get("storage_model") or "Unknown"
+
+        stor_rows = [
+            ("Primary Disk",   _fmt_stor(primary_gb)),
+            ("Storage Type",   stor_type),
+            ("Drive Model",    stor_model),
+            ("Total Storage",  _fmt_stor(total_gb)),
+        ]
+        for r, (label, value) in enumerate(stor_rows):
+            ttk.Label(stor_frame, text=label + ":").grid(
+                row=r, column=0, sticky="w", padx=(4, 10), pady=2,
+            )
+            tk.Label(stor_frame, text=value, font=val_font, fg="#1a1a1a").grid(
+                row=r, column=1, sticky="w", padx=4, pady=2,
+            )
+
+        # ── Scorecard table ────────────────────────────────────────────
+        score_frame = ttk.LabelFrame(
+            parent, text="  Scorecard vs Apple M3 Pro  ", padding=10
+        )
+        score_frame.grid(row=4, column=0, columnspan=4, sticky="ew", pady=(0, 10))
+
+        col_headers = ("Dimension", "Your Value", "Reference", "Result")
+        col_widths  = (28,           20,            24,          8)
+        for ci, (hdr, w) in enumerate(zip(col_headers, col_widths)):
+            ttk.Label(score_frame, text=hdr, font=header_font, width=w).grid(
+                row=0, column=ci, sticky="w", padx=6, pady=(0, 4),
+            )
+        ttk.Separator(score_frame, orient="horizontal").grid(
+            row=1, column=0, columnspan=4, sticky="ew", pady=2,
+        )
+
+        rows = msi.scorecard(inf)
+        dim_rows  = [rw for rw in rows if rw["result"] in ("PASS", "REVIEW", "FAIL")]
+        info_rows = [rw for rw in rows if rw["result"] == "—"]
+
+        for i, row in enumerate(dim_rows):
+            r      = i * 2 + 2
+            color  = row["color"]
+            tk.Label(score_frame, text=row["metric"], anchor="w", width=28).grid(
+                row=r, column=0, sticky="w", padx=6, pady=(4, 0),
+            )
+            tk.Label(score_frame, text=row["value"], anchor="w", width=20).grid(
+                row=r, column=1, sticky="w", padx=6, pady=(4, 0),
+            )
+            tk.Label(
+                score_frame, text=row["target"], anchor="w", width=24,
+                fg=_GRAY, wraplength=200, justify="left",
+            ).grid(row=r, column=2, sticky="w", padx=6, pady=(4, 0))
+            tk.Label(
+                score_frame, text=row["result"], anchor="w",
+                fg=color, font=result_font,
+            ).grid(row=r, column=3, sticky="w", padx=6, pady=(4, 0))
+            # Note on sub-row
+            tk.Label(
+                score_frame, text=row["note"], anchor="w",
+                fg=_GRAY, font=note_font,
+                wraplength=520, justify="left",
+            ).grid(row=r + 1, column=0, columnspan=4, sticky="w", padx=6, pady=(0, 4))
+
+        # ── Info rows (upgrade potential, etc.) ────────────────────────
+        if info_rows:
+            info_frame = ttk.LabelFrame(
+                parent, text="  Additional Info  ", padding=10
+            )
+            info_frame.grid(row=5, column=0, columnspan=4, sticky="ew", pady=(0, 10))
+
+            for i, row in enumerate(info_rows):
+                tk.Label(
+                    info_frame, text=row["metric"],
+                    font=font.Font(family="Helvetica", size=10, weight="bold"),
+                    anchor="w",
+                ).grid(row=i * 2, column=0, sticky="w", padx=6, pady=(4, 0))
+                tk.Label(
+                    info_frame, text=row["note"], anchor="w",
+                    fg=_GRAY, font=note_font,
+                    wraplength=560, justify="left",
+                ).grid(row=i * 2 + 1, column=0, sticky="w", padx=6, pady=(0, 4))
+
+        # ── Overall grade ──────────────────────────────────────────────
+        ttk.Separator(parent, orient="horizontal").grid(
+            row=6, column=0, columnspan=4, sticky="ew", pady=8,
+        )
+
+        if dim_rows:
+            score = sum(
+                100 if rw["result"] == "PASS" else 65 if rw["result"] == "REVIEW" else 30
+                for rw in dim_rows
+            ) / len(dim_rows)
+            grade = _score_label(score)
+            grade_color = _score_color(score)
+            if score >= 85:
+                verdict = "Memory and storage match or exceed the Apple M3 Pro baseline"
+            elif score >= 65:
+                verdict = "Competitive memory and storage; minor gaps vs the M3 Pro"
+            else:
+                verdict = "Memory or storage falls noticeably behind the M3 Pro baseline"
+        else:
+            grade = "—"
+            grade_color = _GRAY
+            verdict = "Could not compute overall score"
+
+        overall_font = font.Font(family="Helvetica", size=28, weight="bold")
+        tk.Label(parent, text=grade, font=overall_font, fg=grade_color).grid(
+            row=7, column=0, columnspan=4, pady=(0, 2),
+        )
+        tk.Label(
+            parent, text=verdict, fg=grade_color,
+            font=font.Font(family="Helvetica", size=11),
+        ).grid(row=8, column=0, columnspan=4, pady=(0, 8))
+
+        tk.Label(
+            parent,
+            text="Scores compare against the Apple M3 Pro (18 GB unified memory, "
+                 "512 GB NVMe SSD, ~7.4 GB/s read).\n"
+                 "Storage speed is estimated from drive type. Results are for "
+                 "comparison purposes only.",
+            fg=_GRAY,
+            font=font.Font(family="Helvetica", size=9),
+            justify="center",
+        ).grid(row=9, column=0, columnspan=4, pady=(0, 12))
 
 
 # ---------------------------------------------------------------------------
