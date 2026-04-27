@@ -208,7 +208,6 @@
     <Style TargetType="NavigationPage">
         <Setter Property="BarBackgroundColor" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Gray950}}" />
         <Setter Property="BarTextColor" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource White}}" />
-        <Setter Property="IconImageSource" Value="{FontImage Font={StaticResource MaterialDesignIconsFontFamily}, Glyph=&#xf043;, Color=White}" />
     </Style>
 
     <Style TargetType="ProgressBar">

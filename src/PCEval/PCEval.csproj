@@ -27,7 +27,7 @@
     <ApplicationVersion>1</ApplicationVersion>
 
     <!-- Windows-specific: require WinUI 3 (Windows App SDK) -->
-    <WindowsSdkPackageVersion>10.0.19041.34</WindowsSdkPackageVersion>
+    <WindowsSdkPackageVersion>10.0.19041.57</WindowsSdkPackageVersion>
     <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
   </PropertyGroup>
 

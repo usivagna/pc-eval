@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using PCEval.Models;
+using DisplayInfo = PCEval.Models.DisplayInfo;
 
 namespace PCEval.Services;
 

@@ -1,4 +1,5 @@
 using PCEval.Models;
+using DisplayInfo = PCEval.Models.DisplayInfo;
 
 namespace PCEval.Services;
 

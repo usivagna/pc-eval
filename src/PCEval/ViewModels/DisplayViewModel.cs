@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PCEval.Models;
 using PCEval.Services;
+using DisplayInfo = PCEval.Models.DisplayInfo;
 
 namespace PCEval.ViewModels;
 
