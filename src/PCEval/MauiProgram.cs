@@ -26,11 +26,13 @@ public static class MauiProgram
         builder.Services.AddTransient<DisplayViewModel>();
         builder.Services.AddTransient<ProcessorViewModel>();
         builder.Services.AddTransient<RetinaCheckerViewModel>();
+        builder.Services.AddTransient<MacLineupViewModel>();
 
         // Views / Pages
         builder.Services.AddTransient<DisplayPage>();
         builder.Services.AddTransient<ProcessorPage>();
         builder.Services.AddTransient<RetinaCheckerPage>();
+        builder.Services.AddTransient<MacLineupPage>();
 
         // Shell and App (must be registered after pages so DI can construct them)
         builder.Services.AddTransient<AppShell>();

@@ -7,6 +7,7 @@
     <TabBar>
         <ShellContent Title="Display"         Route="DisplayPage"       x:Name="DisplayContent" />
         <ShellContent Title="Processor"       Route="ProcessorPage"     x:Name="ProcessorContent" />
+        <ShellContent Title="Mac Lineup"      Route="MacLineupPage"     x:Name="MacLineupContent" />
         <ShellContent Title="Retina Checker"  Route="RetinaCheckerPage" x:Name="RetinaContent" />
     </TabBar>
 

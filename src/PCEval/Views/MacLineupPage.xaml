@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:PCEval.Models"
+             x:Class="PCEval.Views.MacLineupPage"
+             BackgroundColor="{AppThemeBinding Light={DynamicResource MicaLight}, Dark={DynamicResource MicaDark}}"
+             Title="Mac Lineup">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="24,20" Spacing="16">
+
+            <!-- Header -->
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Mac Lineup Comparison" Style="{DynamicResource TitleLargeText}" />
+                <Label Style="{DynamicResource SecondaryText}"
+                       Text="See how your PC stacks up against every current Mac, point by point." />
+            </VerticalStackLayout>
+
+            <!-- Loading -->
+            <ActivityIndicator IsRunning="{Binding IsLoading}"
+                               IsVisible="{Binding IsLoading}"
+                               HorizontalOptions="Center"
+                               Color="{DynamicResource Primary}" />
+
+            <!-- Your PC card -->
+            <Border Style="{DynamicResource FluentCard}">
+                <Grid ColumnDefinitions="*,*,Auto"
+                      RowDefinitions="Auto,Auto,Auto"
+                      ColumnSpacing="16" RowSpacing="6">
+
+                    <Label Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
+                           Text="Your PC" Style="{DynamicResource SubtitleText}" />
+
+                    <Label Grid.Row="1" Grid.Column="0" Style="{DynamicResource CaptionText}" Text="CPU / SoC" />
+                    <Label Grid.Row="2" Grid.Column="0" Style="{DynamicResource BodyStrongText}"
+                           Text="{Binding UserCpuLabel}" LineBreakMode="TailTruncation" />
+
+                    <Label Grid.Row="1" Grid.Column="1" Style="{DynamicResource CaptionText}" Text="Display" />
+                    <Label Grid.Row="2" Grid.Column="1" Style="{DynamicResource BodyStrongText}"
+                           Text="{Binding UserDisplayLabel}" />
+
+                    <VerticalStackLayout Grid.Row="1" Grid.Column="2" Grid.RowSpan="2" Spacing="4"
+                                         WidthRequest="160">
+                        <Label Style="{DynamicResource CaptionText}" Text="Diagonal (in)" />
+                        <Entry Placeholder="e.g. 27"
+                               Keyboard="Numeric"
+                               Text="{Binding DiagonalInput}" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <!-- Summary line -->
+            <Label Style="{DynamicResource SecondaryText}"
+                   Text="{Binding Summary}" />
+
+            <!-- Comparison cards -->
+            <CollectionView ItemsSource="{Binding Comparisons}">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
+                </CollectionView.ItemsLayout>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:MacComparisonResult">
+                        <Border Style="{DynamicResource FluentCard}">
+                            <VerticalStackLayout Spacing="10">
+
+                                <!-- Card header: Mac name + verdict pill -->
+                                <Grid ColumnDefinitions="*,Auto"
+                                      RowDefinitions="Auto,Auto"
+                                      ColumnSpacing="12" RowSpacing="2">
+                                    <Label Grid.Row="0" Grid.Column="0"
+                                           Style="{DynamicResource SubtitleText}"
+                                           Text="{Binding Mac.Label}" />
+                                    <Label Grid.Row="1" Grid.Column="0"
+                                           Style="{DynamicResource CaptionText}"
+                                           Text="{Binding Mac.Notes}" />
+
+                                    <Border Grid.Row="0" Grid.Column="1" Grid.RowSpan="2"
+                                            BackgroundColor="{Binding VerdictColor}"
+                                            Padding="10,4" VerticalOptions="Start">
+                                        <Border.StrokeShape>
+                                            <RoundRectangle CornerRadius="12" />
+                                        </Border.StrokeShape>
+                                        <Border.Stroke>
+                                            <SolidColorBrush Color="Transparent" />
+                                        </Border.Stroke>
+                                        <Label Text="{Binding Verdict}"
+                                               TextColor="White"
+                                               FontAttributes="Bold" FontSize="12" />
+                                    </Border>
+                                </Grid>
+
+                                <!-- Summary -->
+                                <Label Style="{DynamicResource BodyText}" Text="{Binding Summary}" />
+
+                                <!-- Spec block: starting price + form factor -->
+                                <Border Style="{DynamicResource FluentSubtleCard}">
+                                    <Grid ColumnDefinitions="*,*,*"
+                                          RowDefinitions="Auto,Auto"
+                                          ColumnSpacing="16" RowSpacing="2">
+
+                                        <Label Grid.Row="0" Grid.Column="0" Style="{DynamicResource CaptionText}" Text="Form factor" />
+                                        <Label Grid.Row="1" Grid.Column="0" Style="{DynamicResource BodyStrongText}" Text="{Binding Mac.FormFactor}" />
+
+                                        <Label Grid.Row="0" Grid.Column="1" Style="{DynamicResource CaptionText}" Text="Chip" />
+                                        <Label Grid.Row="1" Grid.Column="1" Style="{DynamicResource BodyStrongText}" Text="{Binding Mac.Chip}" />
+
+                                        <Label Grid.Row="0" Grid.Column="2" Style="{DynamicResource CaptionText}" Text="Starts at" />
+                                        <Label Grid.Row="1" Grid.Column="2" Style="{DynamicResource BodyStrongText}"
+                                               Text="{Binding Mac.StartingPriceUsd, StringFormat='${0:N0}'}" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Per-point comparison rows header -->
+                                <Grid ColumnDefinitions="2*,2*,2*,90"
+                                      ColumnSpacing="8"
+                                      Padding="0,8,0,4">
+                                    <Label Grid.Column="0" Style="{DynamicResource CaptionText}" Text="Metric" />
+                                    <Label Grid.Column="1" Style="{DynamicResource CaptionText}" Text="Your PC" />
+                                    <Label Grid.Column="2" Style="{DynamicResource CaptionText}" Text="This Mac" />
+                                    <Label Grid.Column="3" Style="{DynamicResource CaptionText}" Text="Result"
+                                           HorizontalTextAlignment="End" />
+                                </Grid>
+
+                                <!-- Per-point rows -->
+                                <CollectionView ItemsSource="{Binding Rows}">
+                                    <CollectionView.ItemsLayout>
+                                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="0" />
+                                    </CollectionView.ItemsLayout>
+                                    <CollectionView.ItemTemplate>
+                                        <DataTemplate x:DataType="models:MacComparisonRow">
+                                            <VerticalStackLayout Spacing="2" Padding="0,6">
+                                                <Grid ColumnDefinitions="2*,2*,2*,90"
+                                                      ColumnSpacing="8">
+                                                    <Label Grid.Column="0" Style="{DynamicResource BodyText}"
+                                                           Text="{Binding Metric}" />
+                                                    <Label Grid.Column="1" Style="{DynamicResource BodyText}"
+                                                           Text="{Binding YourValue}" />
+                                                    <Label Grid.Column="2" Style="{DynamicResource BodyText}"
+                                                           Text="{Binding MacValue}" />
+                                                    <Label Grid.Column="3" Style="{DynamicResource BodyStrongText}"
+                                                           Text="{Binding Result}"
+                                                           TextColor="{Binding ResultColor}"
+                                                           HorizontalTextAlignment="End" />
+                                                </Grid>
+                                                <Label Style="{DynamicResource CaptionText}"
+                                                       Text="{Binding Note}" />
+                                            </VerticalStackLayout>
+                                        </DataTemplate>
+                                    </CollectionView.ItemTemplate>
+                                </CollectionView>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
+

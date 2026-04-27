@@ -9,11 +9,13 @@ public partial class AppShell : Shell
     /// page constructor is required (fixing the ContentTemplate activator issue).
     /// </summary>
     public AppShell(DisplayPage displayPage, ProcessorPage processorPage,
+                    MacLineupPage macLineupPage,
                     RetinaCheckerPage retinaCheckerPage)
     {
         InitializeComponent();
-        DisplayContent.Content  = displayPage;
+        DisplayContent.Content   = displayPage;
         ProcessorContent.Content = processorPage;
-        RetinaContent.Content   = retinaCheckerPage;
+        MacLineupContent.Content = macLineupPage;
+        RetinaContent.Content    = retinaCheckerPage;
     }
 }
