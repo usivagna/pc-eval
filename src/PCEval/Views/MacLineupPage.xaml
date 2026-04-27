@@ -24,11 +24,11 @@
 
             <!-- Your PC card -->
             <Border Style="{DynamicResource FluentCard}">
-                <Grid ColumnDefinitions="*,*,Auto"
-                      RowDefinitions="Auto,Auto,Auto"
+                <Grid ColumnDefinitions="*,*,*,*,*"
+                      RowDefinitions="Auto,Auto,Auto,Auto"
                       ColumnSpacing="16" RowSpacing="6">
 
-                    <Label Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
+                    <Label Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="5"
                            Text="Your PC" Style="{DynamicResource SubtitleText}" />
 
                     <Label Grid.Row="1" Grid.Column="0" Style="{DynamicResource CaptionText}" Text="CPU / SoC" />
@@ -37,15 +37,30 @@
 
                     <Label Grid.Row="1" Grid.Column="1" Style="{DynamicResource CaptionText}" Text="Display" />
                     <Label Grid.Row="2" Grid.Column="1" Style="{DynamicResource BodyStrongText}"
-                           Text="{Binding UserDisplayLabel}" />
+                           Text="{Binding UserDisplayLabel}" LineBreakMode="TailTruncation" />
 
-                    <VerticalStackLayout Grid.Row="1" Grid.Column="2" Grid.RowSpan="2" Spacing="4"
-                                         WidthRequest="160">
-                        <Label Style="{DynamicResource CaptionText}" Text="Diagonal (in)" />
+                    <Label Grid.Row="1" Grid.Column="2" Style="{DynamicResource CaptionText}" Text="Memory" />
+                    <Label Grid.Row="2" Grid.Column="2" Style="{DynamicResource BodyStrongText}"
+                           Text="{Binding UserMemoryLabel}" LineBreakMode="TailTruncation" />
+
+                    <Label Grid.Row="1" Grid.Column="3" Style="{DynamicResource CaptionText}" Text="Storage" />
+                    <Label Grid.Row="2" Grid.Column="3" Style="{DynamicResource BodyStrongText}"
+                           Text="{Binding UserStorageLabel}" LineBreakMode="TailTruncation" />
+
+                    <Label Grid.Row="1" Grid.Column="4" Style="{DynamicResource CaptionText}" Text="Graphics" />
+                    <Label Grid.Row="2" Grid.Column="4" Style="{DynamicResource BodyStrongText}"
+                           Text="{Binding UserGpuLabel}" LineBreakMode="TailTruncation" />
+
+                    <HorizontalStackLayout Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="5"
+                                           Spacing="8" Margin="0,8,0,0">
+                        <Label Style="{DynamicResource CaptionText}"
+                               VerticalOptions="Center"
+                               Text="Screen diagonal (in):" />
                         <Entry Placeholder="e.g. 27"
+                               WidthRequest="120"
                                Keyboard="Numeric"
                                Text="{Binding DiagonalInput}" />
-                    </VerticalStackLayout>
+                    </HorizontalStackLayout>
                 </Grid>
             </Border>
 

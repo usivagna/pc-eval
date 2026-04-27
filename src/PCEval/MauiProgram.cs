@@ -21,6 +21,7 @@ public static class MauiProgram
         // Services
         builder.Services.AddSingleton<IDisplayService, DisplayService>();
         builder.Services.AddSingleton<IProcessorService, ProcessorService>();
+        builder.Services.AddSingleton<ISystemInfoService, SystemInfoService>();
 
         // ViewModels
         builder.Services.AddTransient<DisplayViewModel>();

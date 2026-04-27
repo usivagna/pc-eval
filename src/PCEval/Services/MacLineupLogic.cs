@@ -28,6 +28,9 @@ public static class MacLineupLogic
             P3GamutPct = 99, HdrSupported = false,
             SustainedBrightnessNits = 500, PeakBrightnessNits = 500,
             StartingPriceUsd = 1099,
+            BaseRamGb = 16, MaxRamGb = 32, MemoryType = "Unified LPDDR5X", MemoryBandwidthGbs = 120,
+            BaseStorageGb = 256, MaxStorageGb = 2048,
+            GpuLabel = "10-core GPU", GpuTflops = 4.3,
             Notes = "Fanless ultraportable; great battery, no HDR display.",
         },
         new() {
@@ -39,6 +42,9 @@ public static class MacLineupLogic
             P3GamutPct = 99, HdrSupported = false,
             SustainedBrightnessNits = 500, PeakBrightnessNits = 500,
             StartingPriceUsd = 1299,
+            BaseRamGb = 16, MaxRamGb = 32, MemoryType = "Unified LPDDR5X", MemoryBandwidthGbs = 120,
+            BaseStorageGb = 256, MaxStorageGb = 2048,
+            GpuLabel = "10-core GPU", GpuTflops = 4.3,
             Notes = "Larger Air; same M4 chip and 60 Hz panel.",
         },
         new() {
@@ -50,6 +56,9 @@ public static class MacLineupLogic
             P3GamutPct = 99, HdrSupported = true,
             SustainedBrightnessNits = 1000, PeakBrightnessNits = 1600,
             StartingPriceUsd = 1599,
+            BaseRamGb = 16, MaxRamGb = 32, MemoryType = "Unified LPDDR5X", MemoryBandwidthGbs = 120,
+            BaseStorageGb = 512, MaxStorageGb = 2048,
+            GpuLabel = "10-core GPU", GpuTflops = 4.3,
             Notes = "Liquid Retina XDR with ProMotion and HDR.",
         },
         new() {
@@ -61,6 +70,9 @@ public static class MacLineupLogic
             P3GamutPct = 99, HdrSupported = true,
             SustainedBrightnessNits = 1000, PeakBrightnessNits = 1600,
             StartingPriceUsd = 1999,
+            BaseRamGb = 24, MaxRamGb = 48, MemoryType = "Unified LPDDR5X", MemoryBandwidthGbs = 273,
+            BaseStorageGb = 512, MaxStorageGb = 4096,
+            GpuLabel = "16-core GPU", GpuTflops = 8.0,
             Notes = "Pro chip + XDR; the workhorse 14-inch.",
         },
         new() {
@@ -72,6 +84,9 @@ public static class MacLineupLogic
             P3GamutPct = 99, HdrSupported = true,
             SustainedBrightnessNits = 1000, PeakBrightnessNits = 1600,
             StartingPriceUsd = 3199,
+            BaseRamGb = 36, MaxRamGb = 128, MemoryType = "Unified LPDDR5X", MemoryBandwidthGbs = 410,
+            BaseStorageGb = 1024, MaxStorageGb = 8192,
+            GpuLabel = "32-core GPU", GpuTflops = 16.0,
             Notes = "Top-tier 14-inch for creative pros.",
         },
         new() {
@@ -83,6 +98,9 @@ public static class MacLineupLogic
             P3GamutPct = 99, HdrSupported = true,
             SustainedBrightnessNits = 1000, PeakBrightnessNits = 1600,
             StartingPriceUsd = 2499,
+            BaseRamGb = 24, MaxRamGb = 48, MemoryType = "Unified LPDDR5X", MemoryBandwidthGbs = 273,
+            BaseStorageGb = 512, MaxStorageGb = 4096,
+            GpuLabel = "20-core GPU", GpuTflops = 9.6,
             Notes = "Larger XDR canvas for creative work.",
         },
         new() {
@@ -94,6 +112,9 @@ public static class MacLineupLogic
             P3GamutPct = 99, HdrSupported = true,
             SustainedBrightnessNits = 1000, PeakBrightnessNits = 1600,
             StartingPriceUsd = 3499,
+            BaseRamGb = 36, MaxRamGb = 128, MemoryType = "Unified LPDDR5X", MemoryBandwidthGbs = 546,
+            BaseStorageGb = 1024, MaxStorageGb = 8192,
+            GpuLabel = "40-core GPU", GpuTflops = 18.0,
             Notes = "Flagship laptop; Max chip + 16\" XDR.",
         },
         new() {
@@ -105,6 +126,9 @@ public static class MacLineupLogic
             P3GamutPct = 99, HdrSupported = false,
             SustainedBrightnessNits = 500, PeakBrightnessNits = 500,
             StartingPriceUsd = 1299,
+            BaseRamGb = 16, MaxRamGb = 32, MemoryType = "Unified LPDDR5X", MemoryBandwidthGbs = 120,
+            BaseStorageGb = 256, MaxStorageGb = 2048,
+            GpuLabel = "10-core GPU", GpuTflops = 4.3,
             Notes = "4.5K Retina all-in-one for the home.",
         },
         new() {
@@ -112,6 +136,9 @@ public static class MacLineupLogic
             Chip = "Apple M4", ChipTierId = "apple_m4",
             HasBuiltInDisplay = false,
             StartingPriceUsd = 599,
+            BaseRamGb = 16, MaxRamGb = 32, MemoryType = "Unified LPDDR5X", MemoryBandwidthGbs = 120,
+            BaseStorageGb = 256, MaxStorageGb = 2048,
+            GpuLabel = "10-core GPU", GpuTflops = 4.3,
             Notes = "Bring your own display; best price-per-perf in the lineup.",
         },
         new() {
@@ -119,6 +146,9 @@ public static class MacLineupLogic
             Chip = "Apple M4 Pro", ChipTierId = "apple_m4_pro",
             HasBuiltInDisplay = false,
             StartingPriceUsd = 1399,
+            BaseRamGb = 24, MaxRamGb = 64, MemoryType = "Unified LPDDR5X", MemoryBandwidthGbs = 273,
+            BaseStorageGb = 512, MaxStorageGb = 8192,
+            GpuLabel = "20-core GPU", GpuTflops = 9.6,
             Notes = "Pro chip in a tiny footprint.",
         },
         new() {
@@ -126,6 +156,9 @@ public static class MacLineupLogic
             Chip = "Apple M4 Max", ChipTierId = "apple_m4_max",
             HasBuiltInDisplay = false,
             StartingPriceUsd = 1999,
+            BaseRamGb = 36, MaxRamGb = 128, MemoryType = "Unified LPDDR5X", MemoryBandwidthGbs = 410,
+            BaseStorageGb = 512, MaxStorageGb = 8192,
+            GpuLabel = "32-core GPU", GpuTflops = 16.0,
             Notes = "Compact pro desktop; Max chip with sustained performance.",
         },
         new() {
@@ -133,6 +166,9 @@ public static class MacLineupLogic
             Chip = "Apple M3 Ultra", ChipTierId = "apple_m3_ultra",
             HasBuiltInDisplay = false,
             StartingPriceUsd = 3999,
+            BaseRamGb = 96, MaxRamGb = 512, MemoryType = "Unified LPDDR5", MemoryBandwidthGbs = 819,
+            BaseStorageGb = 1024, MaxStorageGb = 16384,
+            GpuLabel = "60-core GPU", GpuTflops = 28.0,
             Notes = "Ultra chip; extreme multi-core for heavy creative work.",
         },
         new() {
@@ -140,6 +176,9 @@ public static class MacLineupLogic
             Chip = "Apple M2 Ultra", ChipTierId = "apple_m2_ultra",
             HasBuiltInDisplay = false,
             StartingPriceUsd = 6999,
+            BaseRamGb = 64, MaxRamGb = 192, MemoryType = "Unified LPDDR5", MemoryBandwidthGbs = 800,
+            BaseStorageGb = 1024, MaxStorageGb = 8192,
+            GpuLabel = "60-core GPU", GpuTflops = 27.2,
             Notes = "Tower with PCIe expansion; Apple's only modular Mac.",
         },
     ];
@@ -176,7 +215,7 @@ public static class MacLineupLogic
     /// in <see cref="Lineup"/>.
     /// </summary>
     public static List<MacComparisonResult> BuildLineupComparison(
-        ProcessorInfo? proc, DisplayInfo? display)
+        ProcessorInfo? proc, DisplayInfo? display, SystemInfo? system = null)
     {
         var results = new List<MacComparisonResult>();
         var userTier = proc?.Tier ?? ProcessorLogic.UnknownTier;
@@ -190,18 +229,14 @@ public static class MacLineupLogic
             macTier ??= ProcessorLogic.UnknownTier;
 
             // CPU dimensions ------------------------------------------------
+            // Skip rows entirely when either side has no data — keeps the UI
+            // free of "Unknown" placeholders.
             void AddCpuRow(string metric, int? userScore, int? macScore, string note)
             {
-                if (userScore is null || macScore is null || macScore == 0)
-                {
-                    rows.Add(new MacComparisonRow {
-                        Metric = metric,
-                        YourValue = userScore?.ToString() ?? "Unknown",
-                        MacValue = macScore?.ToString() ?? "Unknown",
-                        Result = "—", ResultColor = Neutral, Note = note,
-                    });
+                if (userScore is null || userScore == 0 ||
+                    macScore  is null || macScore  == 0)
                     return;
-                }
+
                 double pct = userScore.Value / (double)macScore.Value * 100.0;
                 var (res, col) = ResultFor(pct);
                 rows.Add(new MacComparisonRow {
@@ -218,8 +253,95 @@ public static class MacLineupLogic
             AddCpuRow("CPU Multi-Core",       userTier.MultiCore,  macTier.MultiCore,  "parallel workloads");
             AddCpuRow("Performance / Watt",   userTier.Efficiency, macTier.Efficiency, "battery life proxy");
             AddCpuRow("Sustained Performance", userTier.Sustained, macTier.Sustained, "no throttle under load");
-            AddCpuRow("Integrated GPU",       userTier.Igpu,       macTier.Igpu,       "iGPU / media engine");
             AddCpuRow("Real-World",           userTier.RealWorld,  macTier.RealWorld,  "everyday productivity");
+
+            // Graphics ------------------------------------------------------
+            // Compare user GPU (discrete VRAM, or iGPU score) vs Mac unified GPU.
+            // Apple's GPU shares system RAM, so use BaseRamGb as the effective pool.
+            if (mac.GpuTflops.HasValue || mac.GpuLabel is not null)
+            {
+                string macGpuVal = mac.GpuLabel ?? "Apple GPU";
+                if (mac.GpuTflops.HasValue) macGpuVal += $" · ~{mac.GpuTflops:0.#} TFLOPS";
+
+                if (system?.PrimaryGpuVramGb is double vram && vram > 0)
+                {
+                    string youGpu = system.PrimaryGpuName ?? "Discrete GPU";
+                    string youVal = $"{youGpu} · {vram:0.#} GB VRAM";
+
+                    // Score by VRAM vs Mac unified pool (rough proxy).
+                    if (mac.BaseRamGb is int macPool && macPool > 0)
+                    {
+                        double pct = vram / macPool * 100.0;
+                        var (res, col) = ResultFor(pct);
+                        rows.Add(new MacComparisonRow {
+                            Metric = "Graphics",
+                            YourValue = youVal,
+                            MacValue = macGpuVal,
+                            Result = res, ResultColor = col,
+                            Note = "Dedicated VRAM vs Mac unified-memory pool.",
+                        });
+                    }
+                }
+                else if (userTier.Igpu is int uIgpu && uIgpu > 0 &&
+                         macTier.Igpu  is int mIgpu && mIgpu > 0)
+                {
+                    // Fall back to integrated-GPU benchmark scores.
+                    double pct = uIgpu / (double)mIgpu * 100.0;
+                    var (res, col) = ResultFor(pct);
+                    rows.Add(new MacComparisonRow {
+                        Metric = "Graphics (iGPU)",
+                        YourValue = $"{uIgpu}",
+                        MacValue = $"{macGpuVal} ({mIgpu})",
+                        Result = res, ResultColor = col,
+                        Note = $"{pct:0}% of {mac.Chip} integrated GPU.",
+                    });
+                }
+            }
+
+            // Memory --------------------------------------------------------
+            if (system?.TotalRamGb is double userRam && userRam > 0 &&
+                mac.BaseRamGb is int macRam && macRam > 0)
+            {
+                double pct = userRam / macRam * 100.0;
+                var (res, col) = ResultFor(pct);
+                string yourMem = $"{userRam:0.#} GB";
+                if (!string.IsNullOrEmpty(system.RamType)) yourMem += $" {system.RamType}";
+                if (system.RamSpeedMhz is int sp && sp > 0) yourMem += $"-{sp}";
+
+                string macMem = $"{macRam} GB";
+                if (!string.IsNullOrEmpty(mac.MemoryType)) macMem += $" {mac.MemoryType}";
+                if (mac.MemoryBandwidthGbs.HasValue) macMem += $" · {mac.MemoryBandwidthGbs} GB/s";
+
+                rows.Add(new MacComparisonRow {
+                    Metric = "Memory (RAM)",
+                    YourValue = yourMem,
+                    MacValue = macMem,
+                    Result = res, ResultColor = col,
+                    Note = $"{pct:0}% of base Mac config (max {mac.MaxRamGb} GB).",
+                });
+            }
+
+            // Storage -------------------------------------------------------
+            if (system?.PrimaryStorageGb is double userSsd && userSsd > 0 &&
+                mac.BaseStorageGb is int macSsd && macSsd > 0)
+            {
+                double pct = userSsd / macSsd * 100.0;
+                var (res, col) = ResultFor(pct);
+                string youStor = $"{userSsd:0} GB";
+                if (!string.IsNullOrEmpty(system.PrimaryStorageType)) youStor += $" {system.PrimaryStorageType}";
+
+                string macStor = $"{macSsd} GB SSD";
+                if (mac.MaxStorageGb.HasValue && mac.MaxStorageGb > macSsd)
+                    macStor += $" (up to {mac.MaxStorageGb} GB)";
+
+                rows.Add(new MacComparisonRow {
+                    Metric = "Primary Storage",
+                    YourValue = youStor,
+                    MacValue = macStor,
+                    Result = res, ResultColor = col,
+                    Note = "Comparing primary drive size vs base Mac config.",
+                });
+            }
 
             // Display dimensions (only for Macs with a built-in display) ---
             if (mac.HasBuiltInDisplay)
@@ -236,16 +358,6 @@ public static class MacLineupLogic
                         MacValue  = $"{mac.DisplayPpi} PPI",
                         Result = res, ResultColor = col,
                         Note = $"{pct:0}% of Mac — sharper text & images at higher PPI",
-                    });
-                }
-                else
-                {
-                    rows.Add(new MacComparisonRow {
-                        Metric = "Pixel Density",
-                        YourValue = userPpi.HasValue ? $"{userPpi.Value:0} PPI" : "Unknown",
-                        MacValue = $"{mac.DisplayPpi} PPI",
-                        Result = "—", ResultColor = Neutral,
-                        Note = "Enter your screen diagonal on the Display tab.",
                     });
                 }
 
@@ -279,16 +391,6 @@ public static class MacLineupLogic
                         Note = "Wide-color coverage for photo/video editing.",
                     });
                 }
-                else if (mac.P3GamutPct.HasValue)
-                {
-                    rows.Add(new MacComparisonRow {
-                        Metric = "DCI-P3 Gamut",
-                        YourValue = "Unknown",
-                        MacValue  = $"{mac.P3GamutPct:0}%",
-                        Result = "—", ResultColor = Neutral,
-                        Note = "Mac panels cover ~99% of DCI-P3.",
-                    });
-                }
 
                 // HDR
                 if (display?.HdrSupported is bool youHdr)
@@ -302,15 +404,6 @@ public static class MacLineupLogic
                         Note = mac.HdrSupported
                             ? $"Mac peaks ~{mac.PeakBrightnessNits} nits HDR."
                             : "Neither targets HDR.",
-                    });
-                }
-                else
-                {
-                    rows.Add(new MacComparisonRow {
-                        Metric = "HDR Support",
-                        YourValue = "Unknown",
-                        MacValue  = mac.HdrSupported ? "Yes (XDR)" : "No",
-                        Result = "—", ResultColor = Neutral,
                     });
                 }
 

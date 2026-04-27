@@ -46,5 +46,27 @@ public class MacConfig
     /// <summary>Starting US price in USD.</summary>
     public int? StartingPriceUsd { get; set; }
 
+    // ── Memory (unified) ──────────────────────────────────────────────────
+    /// <summary>Base unified-memory configuration in GB.</summary>
+    public int? BaseRamGb { get; set; }
+    /// <summary>Maximum unified-memory configuration in GB.</summary>
+    public int? MaxRamGb { get; set; }
+    /// <summary>"Unified LPDDR5X", etc.</summary>
+    public string? MemoryType { get; set; }
+    /// <summary>Memory bandwidth in GB/s.</summary>
+    public int? MemoryBandwidthGbs { get; set; }
+
+    // ── Storage ───────────────────────────────────────────────────────────
+    /// <summary>Base SSD size in GB.</summary>
+    public int? BaseStorageGb { get; set; }
+    /// <summary>Maximum SSD size in GB.</summary>
+    public int? MaxStorageGb { get; set; }
+
+    // ── Graphics (Apple GPU is integrated; treated as the primary GPU) ────
+    /// <summary>Marketing GPU label (e.g. "10-core GPU").</summary>
+    public string? GpuLabel { get; set; }
+    /// <summary>FP32 TFLOPS — approximate.</summary>
+    public double? GpuTflops { get; set; }
+
     public string Notes { get; set; } = "";
 }
