@@ -26,7 +26,9 @@
                     <Label Text="Detected Processor Info"
                            FontAttributes="Bold" FontSize="15" Margin="0,0,0,4" />
 
-                    <Grid ColumnDefinitions="*,*" RowSpacing="4">
+                    <Grid ColumnDefinitions="*,*"
+                          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                          RowSpacing="4">
                         <Label Grid.Row="0" Grid.Column="0" Text="CPU / SoC:"         TextColor="Gray" />
                         <Label Grid.Row="0" Grid.Column="1" Text="{Binding CpuModel}"  FontAttributes="Bold" />
 
