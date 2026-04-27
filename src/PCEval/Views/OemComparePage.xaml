@@ -16,7 +16,7 @@
                 <Label Text="Compare Windows OEM systems"
                        Style="{DynamicResource TitleLargeText}" />
                 <Label Style="{DynamicResource SecondaryText}"
-                       Text="Side-by-side specs sourced from public PC Part Picker–style data. Pick two systems to compare." />
+                       Text="Side-by-side specs sourced from public PC Part Picker–style data. Pick up to three systems to compare. Best value per spec is highlighted." />
             </VerticalStackLayout>
 
             <!-- Loading indicator -->
@@ -25,7 +25,7 @@
                                HorizontalOptions="Center" />
 
             <!-- ── System slot cards ──────────────────────────────────── -->
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
 
                 <!-- Slot 1 -->
                 <Border Grid.Column="0" Style="{DynamicResource FluentCard}">
@@ -36,9 +36,11 @@
                                 SelectedItem="{Binding Slot1, Mode=TwoWay}" />
                         <VerticalStackLayout Spacing="2">
                             <Label Text="{Binding Slot1.DisplayName}"
-                                   Style="{DynamicResource TitleText}" />
+                                   Style="{DynamicResource TitleText}"
+                                   LineBreakMode="WordWrap" />
                             <Label Text="{Binding Slot1.ChipModel}"
-                                   Style="{DynamicResource SecondaryText}" />
+                                   Style="{DynamicResource SecondaryText}"
+                                   LineBreakMode="WordWrap" />
                             <Label Text="{Binding Slot1.StartingPriceUsd, StringFormat='Starting at ${0:N0}'}"
                                    Style="{DynamicResource BodyStrongText}" />
                         </VerticalStackLayout>
@@ -57,14 +59,39 @@
                                 SelectedItem="{Binding Slot2, Mode=TwoWay}" />
                         <VerticalStackLayout Spacing="2">
                             <Label Text="{Binding Slot2.DisplayName}"
-                                   Style="{DynamicResource TitleText}" />
+                                   Style="{DynamicResource TitleText}"
+                                   LineBreakMode="WordWrap" />
                             <Label Text="{Binding Slot2.ChipModel}"
-                                   Style="{DynamicResource SecondaryText}" />
+                                   Style="{DynamicResource SecondaryText}"
+                                   LineBreakMode="WordWrap" />
                             <Label Text="{Binding Slot2.StartingPriceUsd, StringFormat='Starting at ${0:N0}'}"
                                    Style="{DynamicResource BodyStrongText}" />
                         </VerticalStackLayout>
                         <Button Text="View on PCPartPicker"
                                 Command="{Binding OpenSlot2Command}"
+                                HorizontalOptions="Start" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Slot 3 -->
+                <Border Grid.Column="2" Style="{DynamicResource FluentCard}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="System C" Style="{DynamicResource CaptionText}" />
+                        <Picker ItemsSource="{Binding AllSystems}"
+                                ItemDisplayBinding="{Binding DisplayName}"
+                                SelectedItem="{Binding Slot3, Mode=TwoWay}" />
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="{Binding Slot3.DisplayName}"
+                                   Style="{DynamicResource TitleText}"
+                                   LineBreakMode="WordWrap" />
+                            <Label Text="{Binding Slot3.ChipModel}"
+                                   Style="{DynamicResource SecondaryText}"
+                                   LineBreakMode="WordWrap" />
+                            <Label Text="{Binding Slot3.StartingPriceUsd, StringFormat='Starting at ${0:N0}'}"
+                                   Style="{DynamicResource BodyStrongText}" />
+                        </VerticalStackLayout>
+                        <Button Text="View on PCPartPicker"
+                                Command="{Binding OpenSlot3Command}"
                                 HorizontalOptions="Start" />
                     </VerticalStackLayout>
                 </Border>
@@ -91,13 +118,16 @@
                                 </HorizontalStackLayout>
 
                                 <!-- Column headers -->
-                                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                                <Grid ColumnDefinitions="1.4*,*,*,*" ColumnSpacing="12">
                                     <Label Grid.Column="0" Text="Spec"
                                            Style="{DynamicResource CaptionText}" />
                                     <Label Grid.Column="1" Text="System A"
                                            Style="{DynamicResource CaptionText}"
                                            HorizontalTextAlignment="End" />
                                     <Label Grid.Column="2" Text="System B"
+                                           Style="{DynamicResource CaptionText}"
+                                           HorizontalTextAlignment="End" />
+                                    <Label Grid.Column="3" Text="System C"
                                            Style="{DynamicResource CaptionText}"
                                            HorizontalTextAlignment="End" />
                                 </Grid>
@@ -112,17 +142,25 @@
                                     </CollectionView.ItemsLayout>
                                     <CollectionView.ItemTemplate>
                                         <DataTemplate x:DataType="models:SpecRow">
-                                            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                                            <Grid ColumnDefinitions="1.4*,*,*,*" ColumnSpacing="12">
                                                 <Label Grid.Column="0"
                                                        Text="{Binding Label}"
                                                        Style="{DynamicResource BodyText}" />
                                                 <Label Grid.Column="1"
                                                        Text="{Binding ValueA}"
+                                                       TextColor="{Binding ColorA}"
                                                        Style="{DynamicResource BodyStrongText}"
                                                        HorizontalTextAlignment="End"
                                                        LineBreakMode="WordWrap" />
                                                 <Label Grid.Column="2"
                                                        Text="{Binding ValueB}"
+                                                       TextColor="{Binding ColorB}"
+                                                       Style="{DynamicResource BodyStrongText}"
+                                                       HorizontalTextAlignment="End"
+                                                       LineBreakMode="WordWrap" />
+                                                <Label Grid.Column="3"
+                                                       Text="{Binding ValueC}"
+                                                       TextColor="{Binding ColorC}"
                                                        Style="{DynamicResource BodyStrongText}"
                                                        HorizontalTextAlignment="End"
                                                        LineBreakMode="WordWrap" />
@@ -140,7 +178,7 @@
             <!-- Footer -->
             <Label Style="{DynamicResource CaptionText}"
                    HorizontalTextAlignment="Center"
-                   Text="Specs are best-effort approximations from public reviews and benchmark databases. Click through to PCPartPicker for the latest pricing and configurations." />
+                   Text="Highlighted values are the best in the comparison. Specs are best-effort approximations from public reviews and benchmark databases — click through to PCPartPicker for the latest pricing and configurations." />
 
         </VerticalStackLayout>
     </ScrollView>

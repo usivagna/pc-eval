@@ -77,8 +77,20 @@ public class OemSystem
     public string DisplayName => $"{Brand} {Model}";
 }
 
-/// <summary>One row inside a spec section: a label plus a value per slot.</summary>
-public record SpecRow(string Label, string ValueA, string ValueB);
+/// <summary>
+/// One row inside a spec section: a label plus a value per slot, with the
+/// index of the winning slot (-1 for non-comparable / tied rows). The Color*
+/// helpers return the accent color when that slot is the winner so the view
+/// can bind <c>TextColor</c> directly with no converter.
+/// </summary>
+public record SpecRow(string Label, string ValueA, string ValueB, string ValueC, int WinnerIndex)
+{
+    private static readonly Color Accent = Color.FromArgb("#512BD4");
+
+    public Color? ColorA => WinnerIndex == 0 ? Accent : null;
+    public Color? ColorB => WinnerIndex == 1 ? Accent : null;
+    public Color? ColorC => WinnerIndex == 2 ? Accent : null;
+}
 
 /// <summary>A group of related spec rows (e.g. "Chip", "Memory").</summary>
 public record SpecGroup(string Title, string Glyph, IReadOnlyList<SpecRow> Rows);
