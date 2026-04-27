@@ -2,142 +2,139 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:models="clr-namespace:PCEval.Models"
+             xmlns:vm="clr-namespace:PCEval.ViewModels"
              x:Class="PCEval.Views.ProcessorPage"
+             x:DataType="vm:ProcessorViewModel"
+             BackgroundColor="{AppThemeBinding Light={DynamicResource MicaLight}, Dark={DynamicResource MicaDark}}"
              Title="Processor">
 
     <ScrollView>
-        <VerticalStackLayout Padding="16" Spacing="12">
+        <VerticalStackLayout Padding="24,20" Spacing="16">
 
-            <!-- Title -->
-            <Label Text="Processor Evaluator"
-                   FontSize="22" FontAttributes="Bold" HorizontalOptions="Center" />
-            <Label Text="How does your CPU / SoC compare to the Apple M3 Pro baseline?"
-                   FontSize="13" TextColor="Gray" HorizontalOptions="Center"
-                   Margin="0,0,0,8" />
+            <!-- Header -->
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Processor Evaluator" Style="{DynamicResource TitleLargeText}" />
+                <Label Style="{DynamicResource SecondaryText}"
+                       Text="How does your CPU / SoC compare to the Apple M3 Pro baseline?" />
+            </VerticalStackLayout>
 
-            <!-- Loading indicator -->
+            <!-- Loading -->
             <ActivityIndicator IsRunning="{Binding IsLoading}"
                                IsVisible="{Binding IsLoading}"
-                               HorizontalOptions="Center" />
+                               HorizontalOptions="Center"
+                               Color="{DynamicResource Primary}" />
 
             <!-- Detected CPU info -->
-            <Frame Padding="12" CornerRadius="8" BorderColor="#ddd">
-                <VerticalStackLayout Spacing="6">
-                    <Label Text="Detected Processor Info"
-                           FontAttributes="Bold" FontSize="15" Margin="0,0,0,4" />
+            <Border Style="{DynamicResource FluentCard}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Detected processor info" Style="{DynamicResource SubtitleText}" />
 
-                    <Grid ColumnDefinitions="*,*"
+                    <Grid ColumnDefinitions="*,Auto"
                           RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
-                          RowSpacing="4">
-                        <Label Grid.Row="0" Grid.Column="0" Text="CPU / SoC:"         TextColor="Gray" />
-                        <Label Grid.Row="0" Grid.Column="1" Text="{Binding CpuModel}"  FontAttributes="Bold" />
+                          ColumnSpacing="16" RowSpacing="6">
+                        <Label Grid.Row="0" Grid.Column="0" Text="CPU / SoC"        Style="{DynamicResource BodyText}" />
+                        <Label Grid.Row="0" Grid.Column="1" Text="{Binding CpuModel}"     Style="{DynamicResource BodyStrongText}" />
 
-                        <Label Grid.Row="1" Grid.Column="0" Text="Recognised Tier:"   TextColor="Gray" />
-                        <Label Grid.Row="1" Grid.Column="1" Text="{Binding TierLabel}" FontAttributes="Bold" />
+                        <Label Grid.Row="1" Grid.Column="0" Text="Recognised tier"  Style="{DynamicResource BodyText}" />
+                        <Label Grid.Row="1" Grid.Column="1" Text="{Binding TierLabel}"    Style="{DynamicResource BodyStrongText}" />
 
-                        <Label Grid.Row="2" Grid.Column="0" Text="Vendor:"            TextColor="Gray" />
-                        <Label Grid.Row="2" Grid.Column="1" Text="{Binding Vendor}"   FontAttributes="Bold" />
+                        <Label Grid.Row="2" Grid.Column="0" Text="Vendor"           Style="{DynamicResource BodyText}" />
+                        <Label Grid.Row="2" Grid.Column="1" Text="{Binding Vendor}"       Style="{DynamicResource BodyStrongText}" />
 
-                        <Label Grid.Row="3" Grid.Column="0" Text="Architecture:"      TextColor="Gray" />
-                        <Label Grid.Row="3" Grid.Column="1" Text="{Binding Architecture}" FontAttributes="Bold" />
+                        <Label Grid.Row="3" Grid.Column="0" Text="Architecture"     Style="{DynamicResource BodyText}" />
+                        <Label Grid.Row="3" Grid.Column="1" Text="{Binding Architecture}" Style="{DynamicResource BodyStrongText}" />
 
-                        <Label Grid.Row="4" Grid.Column="0" Text="Cores:"             TextColor="Gray" />
-                        <Label Grid.Row="4" Grid.Column="1" Text="{Binding Cores}"    FontAttributes="Bold" />
+                        <Label Grid.Row="4" Grid.Column="0" Text="Cores"            Style="{DynamicResource BodyText}" />
+                        <Label Grid.Row="4" Grid.Column="1" Text="{Binding Cores}"        Style="{DynamicResource BodyStrongText}" />
 
-                        <Label Grid.Row="5" Grid.Column="0" Text="Threads:"           TextColor="Gray" />
-                        <Label Grid.Row="5" Grid.Column="1" Text="{Binding Threads}"  FontAttributes="Bold" />
+                        <Label Grid.Row="5" Grid.Column="0" Text="Threads"          Style="{DynamicResource BodyText}" />
+                        <Label Grid.Row="5" Grid.Column="1" Text="{Binding Threads}"      Style="{DynamicResource BodyStrongText}" />
 
-                        <Label Grid.Row="6" Grid.Column="0" Text="Max Frequency:"     TextColor="Gray" />
-                        <Label Grid.Row="6" Grid.Column="1" Text="{Binding MaxFreq}"  FontAttributes="Bold" />
+                        <Label Grid.Row="6" Grid.Column="0" Text="Max frequency"    Style="{DynamicResource BodyText}" />
+                        <Label Grid.Row="6" Grid.Column="1" Text="{Binding MaxFreq}"      Style="{DynamicResource BodyStrongText}" />
 
-                        <Label Grid.Row="7" Grid.Column="0" Text="Typical TDP:"       TextColor="Gray" />
-                        <Label Grid.Row="7" Grid.Column="1" Text="{Binding TypicalTdp}" FontAttributes="Bold" />
+                        <Label Grid.Row="7" Grid.Column="0" Text="Typical TDP"      Style="{DynamicResource BodyText}" />
+                        <Label Grid.Row="7" Grid.Column="1" Text="{Binding TypicalTdp}"   Style="{DynamicResource BodyStrongText}" />
                     </Grid>
                 </VerticalStackLayout>
-            </Frame>
+            </Border>
 
             <!-- Scorecard vs M3 Pro -->
-            <Frame Padding="12" CornerRadius="8" BorderColor="#ddd">
-                <VerticalStackLayout Spacing="4">
-                    <Label Text="Scorecard vs Apple M3 Pro"
-                           FontAttributes="Bold" FontSize="15" Margin="0,0,0,4" />
+            <Border Style="{DynamicResource FluentCard}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Scorecard vs Apple M3 Pro" Style="{DynamicResource SubtitleText}" />
 
-                    <!-- Column headers -->
-                    <Grid ColumnDefinitions="*,80,80,55" Padding="0,0,0,4">
-                        <Label Grid.Column="0" Text="Dimension"        FontAttributes="Bold" FontSize="11" />
-                        <Label Grid.Column="1" Text="Your Score"       FontAttributes="Bold" FontSize="11" />
-                        <Label Grid.Column="2" Text="Reference"        FontAttributes="Bold" FontSize="11" />
-                        <Label Grid.Column="3" Text="Result"           FontAttributes="Bold" FontSize="11" />
+                    <Grid ColumnDefinitions="*,80,80,55" ColumnSpacing="8" Padding="0,4">
+                        <Label Grid.Column="0" Text="Dimension"  Style="{DynamicResource CaptionText}" />
+                        <Label Grid.Column="1" Text="Your score" Style="{DynamicResource CaptionText}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="2" Text="Reference"  Style="{DynamicResource CaptionText}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="3" Text="Result"     Style="{DynamicResource CaptionText}" HorizontalTextAlignment="End" />
                     </Grid>
-                    <BoxView HeightRequest="1" Color="#ddd" Margin="0,2,0,4" />
 
-                    <!-- Dimension rows -->
                     <CollectionView ItemsSource="{Binding DimensionRows}">
                         <CollectionView.ItemTemplate>
                             <DataTemplate x:DataType="models:ProcessorScorecardRow">
-                                <VerticalStackLayout Padding="0,4" Spacing="2">
-                                    <Grid ColumnDefinitions="*,80,80,55">
-                                        <Label Grid.Column="0" Text="{Binding Metric}"
-                                               FontSize="13" />
-                                        <Label Grid.Column="1" Text="{Binding Value}"
-                                               FontSize="13" />
-                                        <Label Grid.Column="2" Text="{Binding Target}"
-                                               FontSize="11" TextColor="Gray" />
+                                <VerticalStackLayout Padding="0,6" Spacing="2">
+                                    <Grid ColumnDefinitions="*,80,80,55" ColumnSpacing="8">
+                                        <Label Grid.Column="0" Text="{Binding Metric}" Style="{DynamicResource BodyText}" />
+                                        <Label Grid.Column="1" Text="{Binding Value}"  Style="{DynamicResource BodyText}" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="2" Text="{Binding Target}" Style="{DynamicResource CaptionText}" HorizontalTextAlignment="End" />
                                         <Label Grid.Column="3" Text="{Binding Result}"
-                                               FontAttributes="Bold" FontSize="13"
-                                               TextColor="{Binding ResultColor}" />
+                                               Style="{DynamicResource BodyStrongText}"
+                                               TextColor="{Binding ResultColor}"
+                                               HorizontalTextAlignment="End" />
                                     </Grid>
-                                    <!-- Consumer insight line -->
                                     <Label Text="{Binding Insight}"
-                                           FontSize="11" TextColor="Gray"
-                                           LineBreakMode="WordWrap"
-                                           Margin="0,0,0,4" />
+                                           Style="{DynamicResource CaptionText}"
+                                           LineBreakMode="WordWrap" />
                                 </VerticalStackLayout>
                             </DataTemplate>
                         </CollectionView.ItemTemplate>
                     </CollectionView>
                 </VerticalStackLayout>
-            </Frame>
+            </Border>
 
             <!-- Strengths & Weaknesses -->
-            <Frame Padding="12" CornerRadius="8" BorderColor="#ddd">
-                <VerticalStackLayout Spacing="6">
-                    <Label Text="Strengths &amp; Weaknesses"
-                           FontAttributes="Bold" FontSize="15" Margin="0,0,0,4" />
+            <Border Style="{DynamicResource FluentCard}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Strengths &amp; weaknesses" Style="{DynamicResource SubtitleText}" />
 
                     <CollectionView ItemsSource="{Binding SummaryRows}">
                         <CollectionView.ItemTemplate>
                             <DataTemplate x:DataType="models:ProcessorScorecardRow">
-                                <Grid ColumnDefinitions="100,*" Padding="0,4">
+                                <Grid ColumnDefinitions="110,*" ColumnSpacing="12" Padding="0,6">
                                     <Label Grid.Column="0" Text="{Binding Metric}"
-                                           FontAttributes="Bold" FontSize="13"
+                                           Style="{DynamicResource BodyStrongText}"
                                            TextColor="{Binding ResultColor}"
                                            VerticalOptions="Start" />
                                     <Label Grid.Column="1" Text="{Binding Value}"
-                                           FontSize="13"
+                                           Style="{DynamicResource BodyText}"
                                            LineBreakMode="WordWrap" />
                                 </Grid>
                             </DataTemplate>
                         </CollectionView.ItemTemplate>
                     </CollectionView>
                 </VerticalStackLayout>
-            </Frame>
+            </Border>
 
             <!-- Overall grade -->
-            <BoxView HeightRequest="1" Color="#ddd" Margin="0,4" />
-            <Label Text="{Binding OverallGrade}"
-                   FontSize="48" FontAttributes="Bold"
-                   TextColor="{Binding OverallColor}"
-                   HorizontalOptions="Center" />
-            <Label Text="{Binding OverallVerdict}"
-                   FontSize="14" TextColor="{Binding OverallColor}"
-                   HorizontalOptions="Center" HorizontalTextAlignment="Center" />
+            <Border Style="{DynamicResource FluentCard}">
+                <VerticalStackLayout Spacing="6" HorizontalOptions="Center">
+                    <Label Text="{Binding OverallGrade}"
+                           Style="{DynamicResource DisplayText}"
+                           TextColor="{Binding OverallColor}"
+                           HorizontalTextAlignment="Center" />
+                    <Label Text="{Binding OverallVerdict}"
+                           Style="{DynamicResource BodyText}"
+                           TextColor="{Binding OverallColor}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Border>
 
             <!-- Footnote -->
-            <Label Text="Scores are relative to Apple M3 Pro = 100%.  Values are derived from published benchmark data and manufacturer specifications; not independently verified."
-                   FontSize="10" TextColor="Gray"
-                   HorizontalOptions="Center" HorizontalTextAlignment="Center"
-                   Margin="0,8,0,16" />
+            <Label Text="Scores are relative to Apple M3 Pro = 100%. Values are derived from published benchmark data and manufacturer specifications; not independently verified."
+                   Style="{DynamicResource CaptionText}"
+                   HorizontalTextAlignment="Center" />
 
         </VerticalStackLayout>
     </ScrollView>

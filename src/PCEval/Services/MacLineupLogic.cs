@@ -473,6 +473,13 @@ public static class MacLineupLogic
                 OverallPct = scored.Count == 0 ? 0 : (better * 110 + match * 100 + worse * 70) / (double)scored.Count,
                 Verdict = verdict,
                 VerdictColor = verdictColor,
+                VerdictGlyph = verdict switch
+                {
+                    "Beats"   => "\uE74A", // Up arrow (Segoe Fluent Icons)
+                    "Trails"  => "\uE74B", // Down arrow
+                    "Matches" => "\uE9AE", // Equal sign
+                    _         => "\uE9CE", // Unknown / dash
+                },
                 Summary = summary,
             });
         }

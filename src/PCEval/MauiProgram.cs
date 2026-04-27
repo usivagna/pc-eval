@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Maui.LifecycleEvents;
 using PCEval.Services;
 using PCEval.ViewModels;
 using PCEval.Views;
@@ -16,6 +17,36 @@ public static class MauiProgram
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+            })
+            .ConfigureLifecycleEvents(events =>
+            {
+#if WINDOWS
+                events.AddWindows(windows => windows.OnWindowCreated(window =>
+                {
+                    // Apply Mica backdrop on the Activated event so it runs after
+                    // the WinUI window content tree is fully set up. Assigning a
+                    // SystemBackdrop too early causes a WinUI failfast on some hosts.
+                    window.Activated += static (sender, _) =>
+                    {
+                        if (sender is Microsoft.UI.Xaml.Window w &&
+                            w.SystemBackdrop is null &&
+                            Microsoft.UI.Composition.SystemBackdrops.MicaController.IsSupported())
+                        {
+                            try
+                            {
+                                w.SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop
+                                {
+                                    Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.Base
+                                };
+                            }
+                            catch
+                            {
+                                // Backdrop assignment failed — ignore and keep default.
+                            }
+                        }
+                    };
+                }));
+#endif
             });
 
         // Services

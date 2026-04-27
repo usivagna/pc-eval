@@ -2,13 +2,49 @@
 <Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
        xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
        x:Class="PCEval.AppShell"
-       Title="PC Evaluator">
+       Title="PC Evaluator"
+       FlyoutBehavior="Disabled">
 
     <TabBar>
-        <ShellContent Title="Display"         Route="DisplayPage"       x:Name="DisplayContent" />
-        <ShellContent Title="Processor"       Route="ProcessorPage"     x:Name="ProcessorContent" />
-        <ShellContent Title="Mac Lineup"      Route="MacLineupPage"     x:Name="MacLineupContent" />
-        <ShellContent Title="Retina Checker"  Route="RetinaCheckerPage" x:Name="RetinaContent" />
+        <ShellContent Title="Display"
+                      Route="DisplayPage"
+                      x:Name="DisplayContent">
+            <ShellContent.Icon>
+                <FontImageSource Glyph="&#xE7F4;"
+                                 FontFamily="{OnPlatform WinUI=Segoe Fluent Icons, Default=OpenSansRegular}"
+                                 Color="{DynamicResource Primary}" />
+            </ShellContent.Icon>
+        </ShellContent>
+
+        <ShellContent Title="Processor"
+                      Route="ProcessorPage"
+                      x:Name="ProcessorContent">
+            <ShellContent.Icon>
+                <FontImageSource Glyph="&#xE950;"
+                                 FontFamily="{OnPlatform WinUI=Segoe Fluent Icons, Default=OpenSansRegular}"
+                                 Color="{DynamicResource Primary}" />
+            </ShellContent.Icon>
+        </ShellContent>
+
+        <ShellContent Title="Mac Lineup"
+                      Route="MacLineupPage"
+                      x:Name="MacLineupContent">
+            <ShellContent.Icon>
+                <FontImageSource Glyph="&#xE7FC;"
+                                 FontFamily="{OnPlatform WinUI=Segoe Fluent Icons, Default=OpenSansRegular}"
+                                 Color="{DynamicResource Primary}" />
+            </ShellContent.Icon>
+        </ShellContent>
+
+        <ShellContent Title="Retina Checker"
+                      Route="RetinaCheckerPage"
+                      x:Name="RetinaContent">
+            <ShellContent.Icon>
+                <FontImageSource Glyph="&#xE7B3;"
+                                 FontFamily="{OnPlatform WinUI=Segoe Fluent Icons, Default=OpenSansRegular}"
+                                 Color="{DynamicResource Primary}" />
+            </ShellContent.Icon>
+        </ShellContent>
     </TabBar>
 
 </Shell>

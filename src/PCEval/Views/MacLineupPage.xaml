@@ -2,7 +2,9 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:models="clr-namespace:PCEval.Models"
+             xmlns:vm="clr-namespace:PCEval.ViewModels"
              x:Class="PCEval.Views.MacLineupPage"
+             x:DataType="vm:MacLineupViewModel"
              BackgroundColor="{AppThemeBinding Light={DynamicResource MicaLight}, Dark={DynamicResource MicaDark}}"
              Title="Mac Lineup">
 
@@ -99,9 +101,17 @@
                                         <Border.Stroke>
                                             <SolidColorBrush Color="Transparent" />
                                         </Border.Stroke>
-                                        <Label Text="{Binding Verdict}"
-                                               TextColor="White"
-                                               FontAttributes="Bold" FontSize="12" />
+                                        <HorizontalStackLayout Spacing="6">
+                                            <Label Text="{Binding VerdictGlyph}"
+                                                   TextColor="White"
+                                                   FontFamily="{OnPlatform WinUI=Segoe Fluent Icons, Default=OpenSansSemibold}"
+                                                   FontSize="12"
+                                                   VerticalOptions="Center" />
+                                            <Label Text="{Binding Verdict}"
+                                                   TextColor="White"
+                                                   FontAttributes="Bold" FontSize="12"
+                                                   VerticalOptions="Center" />
+                                        </HorizontalStackLayout>
                                     </Border>
                                 </Grid>
 
@@ -131,8 +141,10 @@
                                       ColumnSpacing="8"
                                       Padding="0,8,0,4">
                                     <Label Grid.Column="0" Style="{DynamicResource CaptionText}" Text="Metric" />
-                                    <Label Grid.Column="1" Style="{DynamicResource CaptionText}" Text="Your PC" />
-                                    <Label Grid.Column="2" Style="{DynamicResource CaptionText}" Text="This Mac" />
+                                    <Label Grid.Column="1" Style="{DynamicResource CaptionText}" Text="Your PC"
+                                           HorizontalTextAlignment="End" />
+                                    <Label Grid.Column="2" Style="{DynamicResource CaptionText}" Text="This Mac"
+                                           HorizontalTextAlignment="End" />
                                     <Label Grid.Column="3" Style="{DynamicResource CaptionText}" Text="Result"
                                            HorizontalTextAlignment="End" />
                                 </Grid>
@@ -150,9 +162,11 @@
                                                     <Label Grid.Column="0" Style="{DynamicResource BodyText}"
                                                            Text="{Binding Metric}" />
                                                     <Label Grid.Column="1" Style="{DynamicResource BodyText}"
-                                                           Text="{Binding YourValue}" />
+                                                           Text="{Binding YourValue}"
+                                                           HorizontalTextAlignment="End" />
                                                     <Label Grid.Column="2" Style="{DynamicResource BodyText}"
-                                                           Text="{Binding MacValue}" />
+                                                           Text="{Binding MacValue}"
+                                                           HorizontalTextAlignment="End" />
                                                     <Label Grid.Column="3" Style="{DynamicResource BodyStrongText}"
                                                            Text="{Binding Result}"
                                                            TextColor="{Binding ResultColor}"

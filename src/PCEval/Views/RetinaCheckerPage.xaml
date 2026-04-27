@@ -1,72 +1,96 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:PCEval.ViewModels"
              x:Class="PCEval.Views.RetinaCheckerPage"
+             x:DataType="vm:RetinaCheckerViewModel"
+             BackgroundColor="{AppThemeBinding Light={DynamicResource MicaLight}, Dark={DynamicResource MicaDark}}"
              Title="Retina Checker">
 
     <ScrollView>
-        <VerticalStackLayout Padding="16" Spacing="10" MaximumWidthRequest="500"
+        <VerticalStackLayout Padding="24,20" Spacing="16"
+                             MaximumWidthRequest="640"
                              HorizontalOptions="Center">
 
-            <!-- Title -->
-            <Label Text="Retina Display Checker"
-                   FontSize="22" FontAttributes="Bold" HorizontalOptions="Center"
-                   Margin="0,0,0,8" />
+            <!-- Header -->
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Retina Display Checker" Style="{DynamicResource TitleLargeText}" />
+                <Label Style="{DynamicResource SecondaryText}"
+                       Text="Does your display meet Apple's Retina pixel density at your viewing distance?" />
+            </VerticalStackLayout>
 
-            <!-- Detected resolution row -->
-            <Frame Padding="12" CornerRadius="8" BorderColor="#ddd">
-                <Grid ColumnDefinitions="*,*"
-                      RowDefinitions="Auto,Auto,Auto,Auto,Auto"
-                      RowSpacing="8">
+            <!-- Setup card -->
+            <Border Style="{DynamicResource FluentCard}">
+                <VerticalStackLayout Spacing="14">
+                    <Label Text="Display setup" Style="{DynamicResource SubtitleText}" />
 
-                    <Label Grid.Row="0" Grid.Column="0" Text="Detected resolution:"
-                           VerticalOptions="Center" TextColor="Gray" />
-                    <Label Grid.Row="0" Grid.Column="1" Text="{Binding DetectedResolution}"
-                           FontAttributes="Bold" VerticalOptions="Center" />
+                    <Grid ColumnDefinitions="*,Auto"
+                          RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                          ColumnSpacing="16" RowSpacing="12">
 
-                    <Label Grid.Row="1" Grid.Column="0" Text="Screen diagonal (inches):"
-                           VerticalOptions="Center" TextColor="Gray" />
-                    <Entry Grid.Row="1" Grid.Column="1"
-                           Placeholder="e.g. 27"
-                           Keyboard="Numeric"
-                           Text="{Binding DiagonalInput}"
-                           VerticalOptions="Center" />
+                        <Label Grid.Row="0" Grid.Column="0"
+                               Text="Detected resolution"
+                               Style="{DynamicResource BodyText}"
+                               VerticalOptions="Center" />
+                        <Label Grid.Row="0" Grid.Column="1"
+                               Text="{Binding DetectedResolution}"
+                               Style="{DynamicResource BodyStrongText}"
+                               VerticalOptions="Center" />
 
-                    <Label Grid.Row="2" Grid.Column="0" Text="Pixel density (PPI):"
-                           VerticalOptions="Center" TextColor="Gray" />
-                    <Label Grid.Row="2" Grid.Column="1" Text="{Binding PpiDisplay}"
-                           FontAttributes="Bold" VerticalOptions="Center" />
+                        <Label Grid.Row="1" Grid.Column="0"
+                               Text="Screen diagonal (in)"
+                               Style="{DynamicResource BodyText}"
+                               VerticalOptions="Center" />
+                        <Entry Grid.Row="1" Grid.Column="1"
+                               Placeholder="e.g. 27"
+                               Keyboard="Numeric"
+                               Text="{Binding DiagonalInput}"
+                               WidthRequest="120"
+                               HorizontalTextAlignment="End" />
 
-                    <Label Grid.Row="3" Grid.Column="0" Text="Viewing distance:"
-                           VerticalOptions="Center" TextColor="Gray" />
-                    <Picker Grid.Row="3" Grid.Column="1"
-                            ItemsSource="{Binding ViewingDistanceLabels}"
-                            SelectedIndex="{Binding SelectedDistanceIndex}" />
+                        <Label Grid.Row="2" Grid.Column="0"
+                               Text="Pixel density (PPI)"
+                               Style="{DynamicResource BodyText}"
+                               VerticalOptions="Center" />
+                        <Label Grid.Row="2" Grid.Column="1"
+                               Text="{Binding PpiDisplay}"
+                               Style="{DynamicResource BodyStrongText}"
+                               VerticalOptions="Center" />
 
-                    <Label Grid.Row="4" Grid.Column="0" Text="Required min. PPI (retina):"
-                           VerticalOptions="Center" TextColor="Gray" />
-                    <Label Grid.Row="4" Grid.Column="1" Text="{Binding MinPpiDisplay}"
-                           FontAttributes="Bold" VerticalOptions="Center" />
+                        <Label Grid.Row="3" Grid.Column="0"
+                               Text="Viewing distance"
+                               Style="{DynamicResource BodyText}"
+                               VerticalOptions="Center" />
+                        <Picker Grid.Row="3" Grid.Column="1"
+                                ItemsSource="{Binding ViewingDistanceLabels}"
+                                SelectedIndex="{Binding SelectedDistanceIndex}"
+                                WidthRequest="200" />
 
-                </Grid>
-            </Frame>
+                        <Label Grid.Row="4" Grid.Column="0"
+                               Text="Required min. PPI"
+                               Style="{DynamicResource BodyText}"
+                               VerticalOptions="Center" />
+                        <Label Grid.Row="4" Grid.Column="1"
+                               Text="{Binding MinPpiDisplay}"
+                               Style="{DynamicResource BodyStrongText}"
+                               VerticalOptions="Center" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
 
-            <!-- Separator -->
-            <BoxView HeightRequest="1" Color="#ddd" Margin="0,6" />
-
-            <!-- Result -->
-            <Label Text="{Binding ResultText}"
-                   FontSize="20" FontAttributes="Bold"
-                   TextColor="{Binding ResultColor}"
-                   HorizontalOptions="Center"
-                   HorizontalTextAlignment="Center" />
-
-            <!-- Explanation -->
-            <Label Text="{Binding ExplanationText}"
-                   FontSize="13" TextColor="Gray"
-                   HorizontalOptions="Center" HorizontalTextAlignment="Center"
-                   LineBreakMode="WordWrap"
-                   Margin="0,4,0,16" />
+            <!-- Result card -->
+            <Border Style="{DynamicResource FluentCard}">
+                <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
+                    <Label Text="{Binding ResultText}"
+                           Style="{DynamicResource TitleLargeText}"
+                           TextColor="{Binding ResultColor}"
+                           HorizontalTextAlignment="Center" />
+                    <Label Text="{Binding ExplanationText}"
+                           Style="{DynamicResource BodyText}"
+                           HorizontalTextAlignment="Center"
+                           LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+            </Border>
 
         </VerticalStackLayout>
     </ScrollView>

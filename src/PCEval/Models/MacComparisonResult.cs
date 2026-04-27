@@ -18,6 +18,9 @@ public class MacComparisonResult
 
     public Color VerdictColor { get; set; } = Colors.Gray;
 
+    /// <summary>Segoe Fluent Icons glyph that mirrors the verdict (▲ / = / ▼) for colorblind accessibility.</summary>
+    public string VerdictGlyph { get; set; } = "";
+
     /// <summary>Short verdict line for the card header.</summary>
     public string Summary { get; set; } = "";
 }
