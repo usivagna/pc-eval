@@ -36,6 +36,16 @@
             </ShellContent.Icon>
         </ShellContent>
 
+        <ShellContent Title="OEM Compare"
+                      Route="OemComparePage"
+                      x:Name="OemCompareContent">
+            <ShellContent.Icon>
+                <FontImageSource Glyph="&#xE9D9;"
+                                 FontFamily="{OnPlatform WinUI=Segoe Fluent Icons, Default=OpenSansRegular}"
+                                 Color="{DynamicResource Primary}" />
+            </ShellContent.Icon>
+        </ShellContent>
+
         <ShellContent Title="Retina Checker"
                       Route="RetinaCheckerPage"
                       x:Name="RetinaContent">

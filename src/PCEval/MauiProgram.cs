@@ -53,18 +53,21 @@ public static class MauiProgram
         builder.Services.AddSingleton<IDisplayService, DisplayService>();
         builder.Services.AddSingleton<IProcessorService, ProcessorService>();
         builder.Services.AddSingleton<ISystemInfoService, SystemInfoService>();
+        builder.Services.AddSingleton<IOemCatalogService, OemCatalogService>();
 
         // ViewModels
         builder.Services.AddTransient<DisplayViewModel>();
         builder.Services.AddTransient<ProcessorViewModel>();
         builder.Services.AddTransient<RetinaCheckerViewModel>();
         builder.Services.AddTransient<MacLineupViewModel>();
+        builder.Services.AddTransient<OemCompareViewModel>();
 
         // Views / Pages
         builder.Services.AddTransient<DisplayPage>();
         builder.Services.AddTransient<ProcessorPage>();
         builder.Services.AddTransient<RetinaCheckerPage>();
         builder.Services.AddTransient<MacLineupPage>();
+        builder.Services.AddTransient<OemComparePage>();
 
         // Shell and App (must be registered after pages so DI can construct them)
         builder.Services.AddTransient<AppShell>();

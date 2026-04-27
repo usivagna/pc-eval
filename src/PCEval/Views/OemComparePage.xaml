@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:PCEval.Models"
+             xmlns:vm="clr-namespace:PCEval.ViewModels"
+             x:Class="PCEval.Views.OemComparePage"
+             x:DataType="vm:OemCompareViewModel"
+             BackgroundColor="{AppThemeBinding Light={DynamicResource MicaLight}, Dark={DynamicResource MicaDark}}"
+             Title="OEM Compare">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="24,20" Spacing="16">
+
+            <!-- Header -->
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Compare Windows OEM systems"
+                       Style="{DynamicResource TitleLargeText}" />
+                <Label Style="{DynamicResource SecondaryText}"
+                       Text="Side-by-side specs sourced from public PC Part Picker–style data. Pick two systems to compare." />
+            </VerticalStackLayout>
+
+            <!-- Loading indicator -->
+            <ActivityIndicator IsVisible="{Binding IsLoading}"
+                               IsRunning="{Binding IsLoading}"
+                               HorizontalOptions="Center" />
+
+            <!-- ── System slot cards ──────────────────────────────────── -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+
+                <!-- Slot 1 -->
+                <Border Grid.Column="0" Style="{DynamicResource FluentCard}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="System A" Style="{DynamicResource CaptionText}" />
+                        <Picker ItemsSource="{Binding AllSystems}"
+                                ItemDisplayBinding="{Binding DisplayName}"
+                                SelectedItem="{Binding Slot1, Mode=TwoWay}" />
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="{Binding Slot1.DisplayName}"
+                                   Style="{DynamicResource TitleText}" />
+                            <Label Text="{Binding Slot1.ChipModel}"
+                                   Style="{DynamicResource SecondaryText}" />
+                            <Label Text="{Binding Slot1.StartingPriceUsd, StringFormat='Starting at ${0:N0}'}"
+                                   Style="{DynamicResource BodyStrongText}" />
+                        </VerticalStackLayout>
+                        <Button Text="View on PCPartPicker"
+                                Command="{Binding OpenSlot1Command}"
+                                HorizontalOptions="Start" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Slot 2 -->
+                <Border Grid.Column="1" Style="{DynamicResource FluentCard}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="System B" Style="{DynamicResource CaptionText}" />
+                        <Picker ItemsSource="{Binding AllSystems}"
+                                ItemDisplayBinding="{Binding DisplayName}"
+                                SelectedItem="{Binding Slot2, Mode=TwoWay}" />
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="{Binding Slot2.DisplayName}"
+                                   Style="{DynamicResource TitleText}" />
+                            <Label Text="{Binding Slot2.ChipModel}"
+                                   Style="{DynamicResource SecondaryText}" />
+                            <Label Text="{Binding Slot2.StartingPriceUsd, StringFormat='Starting at ${0:N0}'}"
+                                   Style="{DynamicResource BodyStrongText}" />
+                        </VerticalStackLayout>
+                        <Button Text="View on PCPartPicker"
+                                Command="{Binding OpenSlot2Command}"
+                                HorizontalOptions="Start" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <!-- ── Spec sections ──────────────────────────────────────── -->
+            <CollectionView ItemsSource="{Binding SpecGroups}">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:SpecGroup">
+                        <Border Style="{DynamicResource FluentCard}">
+                            <VerticalStackLayout Spacing="10">
+
+                                <!-- Section header -->
+                                <HorizontalStackLayout Spacing="8">
+                                    <Label Text="{Binding Glyph}"
+                                           FontFamily="{OnPlatform WinUI=Segoe Fluent Icons, Default=OpenSansSemibold}"
+                                           FontSize="20"
+                                           VerticalOptions="Center" />
+                                    <Label Text="{Binding Title}"
+                                           Style="{DynamicResource SubtitleText}" />
+                                </HorizontalStackLayout>
+
+                                <!-- Column headers -->
+                                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                                    <Label Grid.Column="0" Text="Spec"
+                                           Style="{DynamicResource CaptionText}" />
+                                    <Label Grid.Column="1" Text="System A"
+                                           Style="{DynamicResource CaptionText}"
+                                           HorizontalTextAlignment="End" />
+                                    <Label Grid.Column="2" Text="System B"
+                                           Style="{DynamicResource CaptionText}"
+                                           HorizontalTextAlignment="End" />
+                                </Grid>
+
+                                <BoxView HeightRequest="1"
+                                         Color="{AppThemeBinding Light={StaticResource Gray150}, Dark={StaticResource Gray700}}" />
+
+                                <!-- Spec rows -->
+                                <CollectionView ItemsSource="{Binding Rows}">
+                                    <CollectionView.ItemsLayout>
+                                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="6" />
+                                    </CollectionView.ItemsLayout>
+                                    <CollectionView.ItemTemplate>
+                                        <DataTemplate x:DataType="models:SpecRow">
+                                            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                                                <Label Grid.Column="0"
+                                                       Text="{Binding Label}"
+                                                       Style="{DynamicResource BodyText}" />
+                                                <Label Grid.Column="1"
+                                                       Text="{Binding ValueA}"
+                                                       Style="{DynamicResource BodyStrongText}"
+                                                       HorizontalTextAlignment="End"
+                                                       LineBreakMode="WordWrap" />
+                                                <Label Grid.Column="2"
+                                                       Text="{Binding ValueB}"
+                                                       Style="{DynamicResource BodyStrongText}"
+                                                       HorizontalTextAlignment="End"
+                                                       LineBreakMode="WordWrap" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </CollectionView.ItemTemplate>
+                                </CollectionView>
+
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Footer -->
+            <Label Style="{DynamicResource CaptionText}"
+                   HorizontalTextAlignment="Center"
+                   Text="Specs are best-effort approximations from public reviews and benchmark databases. Click through to PCPartPicker for the latest pricing and configurations." />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
